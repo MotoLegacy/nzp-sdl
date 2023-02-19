@@ -946,7 +946,7 @@ void CL_ParseServerMessage (void)
 {
 	int			cmd;
 	int			i;
-	
+	int type, cost, weapon;
 //
 // if recording demos, copy the message out
 //
@@ -1023,7 +1023,10 @@ void CL_ParseServerMessage (void)
 			break;
 
 		case svc_useprint:
-			SCR_UsePrint (MSG_ReadByte (),MSG_ReadShort (),MSG_ReadByte ());
+			type = MSG_ReadByte();
+			cost = MSG_ReadShort();
+			weapon = MSG_ReadByte ();
+			SCR_UsePrint (type,cost,weapon);
 			break;
 
 		case svc_maxammo:

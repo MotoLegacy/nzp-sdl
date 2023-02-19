@@ -55,3 +55,5 @@ extern	int			scr_copyeverything;
 extern qboolean		block_drawing;
 
 void SCR_UpdateWholeScreen (void);
+
+void SCR_UsePrint (int type, int cost, int weapon);

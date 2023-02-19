@@ -365,7 +365,6 @@ void PF_useprint (void)
 	cost = G_FLOAT(OFS_PARM2);
 	weapon = G_FLOAT(OFS_PARM3);
 
-
 	if (entnum < 1 || entnum > svs.maxclients)
 	{
 		Con_Printf ("tried to sprint to a non-client\n");
