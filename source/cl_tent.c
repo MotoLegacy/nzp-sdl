@@ -187,6 +187,8 @@ void CL_ParseTEnt (void)
 		S_StartSound (-1, 0, cl_sfx_r_exp3, pos, 1, 1);
 		break;
 		
+	case TE_RAYSPLASHRED:
+	case TE_RAYSPLASHGREEN:
 	case TE_TAREXPLOSION:			// tarbaby explosion
 		pos[0] = MSG_ReadCoord ();
 		pos[1] = MSG_ReadCoord ();
@@ -243,7 +245,7 @@ void CL_ParseTEnt (void)
 		S_StartSound (-1, 0, cl_sfx_r_exp3, pos, 1, 1);
 		break;
 	default:
-		Sys_Error ("CL_ParseTEnt: bad type");
+		Sys_Error ("CL_ParseTEnt: bad type %i\n", type);
 	}
 }
 
