@@ -291,7 +291,10 @@ model_t *Mod_LoadModel (model_t *mod, qboolean crash)
 		{
 			Con_Printf ("Missing model %s substituted\n", mod->name);
 		}
-		return NULL;
+		else 
+		{
+			return NULL;	
+		}
 	}
 	
 //
