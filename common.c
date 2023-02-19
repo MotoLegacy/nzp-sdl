@@ -587,7 +587,6 @@ void MSG_WriteByte (sizebuf_t *sb, int c)
 		Sys_Error ("MSG_WriteByte: range error");
 #endif
 
-	//Con_Printf("MSG_WriteByte\n");
 
 	buf = SZ_GetSpace (sb, 1);
 	buf[0] = c;
@@ -602,8 +601,6 @@ void MSG_WriteShort (sizebuf_t *sb, int c)
 		Sys_Error ("MSG_WriteShort: range error");
 #endif
 
-	//Con_Printf("MSG_WriteShort\n");
-
 	buf = SZ_GetSpace (sb, 2);
 	buf[0] = c&0xff;
 	buf[1] = c>>8;
@@ -613,7 +610,6 @@ void MSG_WriteLong (sizebuf_t *sb, int c)
 {
 	byte    *buf;
 
-	//Con_Printf("MSG_WriteLong\n");
 	
 	buf = SZ_GetSpace (sb, 4);
 	buf[0] = c&0xff;
@@ -865,7 +861,6 @@ void *SZ_GetSpace (sizebuf_t *buf, int length)
 
 void SZ_Write (sizebuf_t *buf, void *data, int length)
 {
-	Con_Printf("SZ_Write\n");
 	Q_memcpy (SZ_GetSpace(buf,length),data,length);
 }
 
@@ -875,7 +870,6 @@ void SZ_Print (sizebuf_t *buf, char *data)
 
 	len = Q_strlen(data)+1;
 
-	Con_Printf("SZ_Print\n");
 
 // byte * cast to keep VC++ happy
 	if (buf->data[buf->cursize-1])

@@ -20,6 +20,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
+extern cvar_t nosound;
+
 #define PR_MAX_TEMPSTRING 2048	// 2001-10-25 Enhanced temp string handling by Maddes
 #define	RETURN_EDICT(e) (((int *)pr_globals)[OFS_RETURN] = EDICT_TO_PROG(e))
 
@@ -607,17 +609,16 @@ void PF_sound (void)
 	sample = G_STRING(OFS_PARM2);
 	volume = G_FLOAT(OFS_PARM3) * 255;
 	attenuation = G_FLOAT(OFS_PARM4);
-	
-	if (volume < 0 || volume > 255)
-		Sys_Error ("SV_StartSound: volume = %i", volume);
 
-	if (attenuation < 0 || attenuation > 4)
-		Sys_Error ("SV_StartSound: attenuation = %f", attenuation);
-
-	if (channel < 0 || channel > 7)
-		Sys_Error ("SV_StartSound: channel = %i", channel);
-
-	SV_StartSound (entity, channel, sample, volume, attenuation);
+	if (!nosound.value) {
+		if (volume < 0 || volume > 255)
+			Sys_Error ("SV_StartSound: volume = %i", volume);
+		if (attenuation < 0 || attenuation > 4)
+			Sys_Error ("SV_StartSound: attenuation = %f", attenuation);
+		if (channel < 0 || channel > 7)
+			Sys_Error ("SV_StartSound: channel = %i", channel);
+		SV_StartSound (entity, channel, sample, volume, attenuation);
+	}
 }
 
 /*
@@ -2458,6 +2459,10 @@ void PF_precache_sound (void)
 		
 	s = G_STRING(OFS_PARM0);
 	G_INT(OFS_RETURN) = G_INT(OFS_PARM0);
+	
+	if (nosound.value)
+		return;
+	
 	PR_CheckEmptyString (s);
 	
 	for (i=0 ; i<MAX_SOUNDS ; i++)

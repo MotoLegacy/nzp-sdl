@@ -223,7 +223,7 @@ void R_AddEfrags (entity_t *ent)
 		r_emaxs[i] = ent->origin[i] + entmodel->maxs[i];
 	}
 
-	R_SplitEntityOnNode (cl.worldmodel->nodes);
+	//R_SplitEntityOnNode (cl.worldmodel->nodes);
 
 	ent->topnode = r_pefragtopnode;
 }
