@@ -69,8 +69,6 @@ int alphabling = 0;
 float round_center_x;
 float round_center_y;
 
-char* sb_round_0;
-
 typedef struct
 {
 	int points;
@@ -91,7 +89,6 @@ HUD_Init
 */
 void HUD_Init (void)
 {
-	sb_round_0 = "gfx/hud/r1";
 	strcpy(sb_round[0], "gfx/hud/r1");
 	strcpy(sb_round[1], "gfx/hud/r2");
 	strcpy(sb_round[2], "gfx/hud/r3");
