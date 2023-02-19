@@ -1036,6 +1036,7 @@ This is called at the start of each level
 ================
 */
 extern float		scr_centertime_off;
+void Load_Waypoint ();
 
 #ifdef QUAKE2
 void SV_SpawnServer (char *server, char *startspot)
@@ -1200,6 +1201,7 @@ void SV_SpawnServer (char *server)
 		if (host_client->active)
 			SV_SendServerinfo (host_client);
 	
+	Load_Waypoint ();
 	Con_DPrintf ("Server spawned.\n");
 }
 
