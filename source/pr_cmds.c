@@ -2489,7 +2489,6 @@ void PF_precache_model (void)
 	G_INT(OFS_RETURN) = G_INT(OFS_PARM0);
 	PR_CheckEmptyString (s);
 
-	Con_Printf("checking for model %s\n", s);
 	for (i=0 ; i<MAX_MODELS ; i++)
 	{
 		if (!sv.model_precache[i])

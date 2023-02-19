@@ -44,10 +44,12 @@ char 		*b_centerbutton;
 char 		*b_downbutton;
 char  		*b_upbutton;
 
+#ifdef GFX_GOOD_BLOOD
 char      *fx_blood_lu;
 char      *fx_blood_ru;
 char      *fx_blood_ld;
 char      *fx_blood_rd;
+#endif // GFX_GOOD_BLOOD
 
 qboolean	sb_showscores;
 qboolean 	domaxammo;
@@ -128,11 +130,9 @@ void HUD_Init (void)
 	b_downbutton = "gfx/butticons/facebt_down";
 	b_upbutton = "gfx/butticons/facebt_up";
 
+#ifdef GFX_GOOD_BLOOD
     fx_blood_lu = "gfx/hud/blood";
-    /*fx_blood_lu = "gfx/hud/blood_tl";
-    /fx_blood_ru = "gfx/hud/blood_tr";
-    fx_blood_ld = "gfx/hud/blood_bl";
-    fx_blood_rd = "gfx/hud/blood_br";*/
+#endif // GFX_GOOD_BLOOD
 
     // naievil -- fixme
 	//Achievement_Init();
@@ -186,8 +186,10 @@ void HUD_CacheData(void)
 	DRAW_CONVERT_CACHE(b_downbutton, PAL_STANDARD);
 	DRAW_CONVERT_CACHE(b_upbutton, PAL_STANDARD);
 
+#ifdef GFX_GOOD_BLOOD
 	Con_Printf("loading and converting some blood data...\n");
 	DRAW_CONVERT_CACHE(fx_blood_lu, PAL_STANDARD);
+#endif // GFX_GOOD_BLOOD
 
 	Con_Printf("loading and converting hitmark data...\n");
 	DRAW_CONVERT_CACHE(hitmark, PAL_STANDARD);
@@ -505,7 +507,8 @@ HUD_Blood
 */
 void HUD_Blood (void)
 {
-    float alpha;
+#ifdef GFX_GOOD_BLOOD
+	float alpha;
 	//blubswillrule:
 	//this function scales linearly from health = 0 to health = 100
 	//alpha = (100.0 - (float)cl.stats[STAT_HEALTH])/100*255;
@@ -527,10 +530,28 @@ void HUD_Blood (void)
     float color = 255.0 + modifier;
     
     Draw_TransPic(0,0,Draw_CachePic(fx_blood_lu));
-    //Draw_ColorPic (0, 0, fx_blood_lu, 82, 6, 6, alpha);
-    /*Draw_ColorPic (0, vid.height - fx_blood_ru->height, fx_blood_ld, 82, 6, 6, alpha);
-    Draw_ColorPic (vid.width - fx_blood_ru->width, 0, fx_blood_ru, 82, 6, 6, alpha);
-    Draw_ColorPic (vid.width - fx_blood_ru->width, vid.height - fx_blood_ru->height, fx_blood_rd, 82, 6, 6, alpha);*/
+#else
+	// First Ring
+	if (cl.stats[STAT_HEALTH] <= 75) {
+		Draw_Fill(0, 0, vid.width, 6, 247); // top
+		Draw_Fill(0, 0, 6, vid.height, 247); // left
+		Draw_Fill(vid.width - 6, 0, 6, vid.height, 247); // right
+		Draw_Fill(0, vid.height - 6, vid.width, 6, 247); // bottom
+	}
+	// Second Ring
+	if (cl.stats[STAT_HEALTH] <= 50) {
+		Draw_Fill(6, 6, vid.width - 12, 3, 248); // top
+		Draw_Fill(6, 6, 3, vid.height - 12, 248); // left
+		Draw_Fill(vid.width - 9, 6, 3, vid.height - 12, 248); // right
+		Draw_Fill(6, vid.height - 9, vid.width - 12, 3, 248); // bottom
+	}
+	if (cl.stats[STAT_HEALTH] <= 20 && cl.stats[STAT_HEALTH] != -10) {
+		Draw_Fill(9, 9, vid.width - 18, 2, 249); // top
+		Draw_Fill(9, 9, 2, vid.height - 18, 249); // left
+		Draw_Fill(vid.width - 11, 9, 2, vid.height - 18, 249); // right
+		Draw_Fill(9, vid.height - 11, vid.width - 18, 2, 249); // bottom
+	}
+#endif // GFX_GOOD_BLOOD
 }
 
 /*
