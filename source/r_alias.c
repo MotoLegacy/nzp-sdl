@@ -713,6 +713,13 @@ void R_AliasDrawModel (alight_t *plighting)
 	finalvert_t		finalverts[MAXALIASVERTS +
 						((CACHE_SIZE - 1) / sizeof(finalvert_t)) + 1];
 	auxvert_t		auxverts[MAXALIASVERTS];
+	char 			specChar;
+
+	specChar = currententity->model->name[strlen(currententity->model->name)-5];
+
+	// Don't draw the Mystery Box glow, no fucking way we're getting that one right.
+	if (specChar == '$')
+		return;
 
 	r_amodels_drawn++;
 
