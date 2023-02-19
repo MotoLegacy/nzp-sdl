@@ -39,9 +39,10 @@ typedef struct
 {
 	char	name[MAX_SCOREBOARDNAME];
 	float	entertime;
-	int		frags;
-	int		colors;			// two 4 bit fields
-	byte	translations[VID_GRADES*256];
+	int		points;
+	int		maxpoints;
+	int		kills;
+	int		headshots;
 } scoreboard_t;
 
 typedef struct
@@ -65,7 +66,7 @@ typedef struct
 
 #define	SIGNONS		4			// signon messages to receive before connected
 
-#define	MAX_DLIGHTS		64
+#define	MAX_DLIGHTS		32
 typedef struct
 {
 	vec3_t	origin;
@@ -77,7 +78,7 @@ typedef struct
 } dlight_t;
 
 
-#define	MAX_BEAMS	32
+#define	MAX_BEAMS	24
 typedef struct
 {
 	int		entity;
@@ -86,17 +87,18 @@ typedef struct
 	vec3_t	start, end;
 } beam_t;
 
-#define	MAX_EFRAGS		2048
+#define	MAX_EFRAGS		640
 
 #define	MAX_MAPSTRING	2048
 #define	MAX_DEMOS		8
 #define	MAX_DEMONAME	16
 
-typedef enum {
+typedef int cactive_t;
+enum {
 ca_dedicated, 		// a dedicated server with no ability to start a client
 ca_disconnected, 	// full screen console with no connection
 ca_connected		// valid netcon, talking to a server
-} cactive_t;
+};
 
 //
 // the client_static_t structure is persistant through an arbitrary number
@@ -149,7 +151,8 @@ typedef struct
 
 // information for local display
 	int			stats[MAX_CL_STATS];	// health, etc
-	int			items;			// inventory bit flags
+	int			perks;			// Perk icons.
+	int			progress_bar;			// Revive status
 	float	item_gettime[32];	// cl.time of aquiring item, for blinking
 	float		faceanimtime;	// use anim frame if cl.time < this
 
@@ -169,6 +172,7 @@ typedef struct
 	vec3_t		velocity;		// lerped between mvelocity[0] and [1]
 
 	vec3_t		punchangle;		// temporary offset
+	vec3_t		gun_kick;		// temporary kick
 	
 // pitch drifting vars
 	float		idealpitch;
@@ -214,6 +218,7 @@ typedef struct
 	int			num_entities;	// held in cl_entities array
 	int			num_statics;	// held in cl_staticentities array
 	entity_t	viewent;			// the gun model
+	entity_t	viewent2;			// the second gun model
 
 	int			cdtrack, looptrack;	// cd audio
 
@@ -252,6 +257,7 @@ extern	cvar_t	cl_pitchdriftspeed;
 extern	cvar_t	lookspring;
 extern	cvar_t	lookstrafe;
 extern	cvar_t	sensitivity;
+extern 	cvar_t 	in_aimassist;
 
 extern	cvar_t	m_pitch;
 extern	cvar_t	m_yaw;
@@ -259,8 +265,8 @@ extern	cvar_t	m_forward;
 extern	cvar_t	m_side;
 
 
-#define	MAX_TEMP_ENTITIES	256			// lightning bolts, etc
-#define	MAX_STATIC_ENTITIES	512			// torches, etc
+#define	MAX_TEMP_ENTITIES	64			// lightning bolts, etc
+#define	MAX_STATIC_ENTITIES	128			// torches, etc
 
 extern	client_state_t	cl;
 
@@ -293,7 +299,7 @@ void CL_Disconnect (void);
 void CL_Disconnect_f (void);
 void CL_NextDemo (void);
 
-#define			MAX_VISEDICTS	1024
+#define			MAX_VISEDICTS	256
 extern	int				cl_numvisedicts;
 extern	entity_t		*cl_visedicts[MAX_VISEDICTS];
 

@@ -346,6 +346,41 @@ void PF_centerprint (void)
 
 /*
 =================
+PF_useprint
+
+Print a text depending on what it is fed with
+
+useprint(entity client, float type, float cost, float weapon)
+=================
+*/
+void PF_useprint (void)
+{
+	client_t	*client;
+	int			entnum, type, cost, weapon;
+
+	entnum = G_EDICTNUM(OFS_PARM0);
+	type = G_FLOAT(OFS_PARM1);
+	cost = G_FLOAT(OFS_PARM2);
+	weapon = G_FLOAT(OFS_PARM3);
+
+
+	if (entnum < 1 || entnum > svs.maxclients)
+	{
+		Con_Printf ("tried to sprint to a non-client\n");
+		return;
+	}
+
+	client = &svs.clients[entnum-1];
+
+	MSG_WriteByte (&client->message,svc_useprint);
+	MSG_WriteByte (&client->message,type);
+	MSG_WriteShort (&client->message,cost);
+	MSG_WriteByte (&client->message,weapon);
+	//MSG_WriteString (&client->message, s );
+}
+
+/*
+=================
 PF_normalize
 
 vector normalize(vector)
@@ -572,7 +607,7 @@ void PF_sound (void)
 	sample = G_STRING(OFS_PARM2);
 	volume = G_FLOAT(OFS_PARM3) * 255;
 	attenuation = G_FLOAT(OFS_PARM4);
-
+	
 	if (volume < 0 || volume > 255)
 		Sys_Error ("SV_StartSound: volume = %i", volume);
 
@@ -1342,6 +1377,827 @@ void PF_stov (void)
 	}
 	VectorCopy (d, G_VECTOR(OFS_RETURN));
 }
+
+/*
+=================
+PF_Set_Zombie
+
+void Set_Zombie (entity)
+=================
+*/
+void PF_Set_Zombie (void)
+{
+	//int entitynum = G_EDICT(OFS_PARM0);
+}
+
+/*
+=================
+Main_Waypoint functin
+
+This is where the magic happens
+=================
+*/
+
+int closedset[MAX_WAYPOINTS]; // The set of nodes already evaluated.
+int openset[MAX_WAYPOINTS];//Actual sorted open list
+int opensetRef[MAX_WAYPOINTS];//Reference values of open list
+int opensetLength;//equivalent of javaScript's array[].length;
+#define MaxZombies 16
+
+zombie_ai zombie_list[MaxZombies];
+//Debug//
+void printSortedOpenSet()
+{
+	Con_Printf("Sorted!: ");
+	int qr;
+	for(qr = 0; qr < opensetLength; qr++)
+	{
+		Con_Printf("%i, ",(int)waypoints[openset[qr]].f_score);
+	}
+	Con_Printf("\n");
+}
+//------//
+
+
+void RemoveWayFromList (int listnumber, int waynum)
+{
+	if(listnumber == 1)
+	{
+		//Con_DPrintf ("RemoveWayFromList: closedset[%i] = %i\n", waynum, 0);
+		closedset[waynum] = 0;
+		return;
+	}
+
+	int i;
+	int s;
+	if(listnumber == 2)
+	{
+		for(i = 0; i < opensetLength; i++)
+		{
+			if(openset[i] == waynum)
+			{
+				openset[i] = 0;
+				opensetRef[waynum] = 0;
+
+				for(s = i; s < opensetLength; s++)
+				{
+					openset[s] = openset[s+1];
+				}
+				opensetLength -= 1;
+				return;
+			}
+		}
+	}
+}
+
+void CompareOpenLists()
+{
+	int refCount, count;
+	refCount = 0;
+	count = 0;
+	int i;
+	for(i = 0; i < MAX_WAYPOINTS; i++)
+	{
+		if(openset[i])
+			count++;
+		if(opensetRef[i])
+			refCount++;
+	}
+	if(count != refCount || count != opensetLength || refCount != opensetLength)
+		Con_Printf("%i%i%i\n",count, refCount,opensetLength);
+}
+
+int AddWayToList (int listnumber, int waynum)//blubs binary sorting
+{
+	if(listnumber == 1)//closed list
+	{
+		//Con_DPrintf ("AddWayToList: closedset[%i] = %i\n", waynum, 1);
+		closedset[waynum] = 1;
+		return 1;
+	}
+
+	if(listnumber == 2)//openlist
+	{
+		int min, max, test;
+		min = -1;
+		max = opensetLength;
+		float wayVal = waypoints[waynum].f_score;
+
+		while(max > min)
+		{
+			if(max - min == 1)
+			{
+				int i;
+				for(i = opensetLength; i > max ; i--)
+				{
+					openset[i] = openset[i-1];
+				}
+				openset[max] = waynum;
+				opensetLength += 1;
+				opensetRef[waynum] = 1;
+				//printSortedOpenSet(); for debug only
+				return max;
+			}
+			test = (int)((min + max)/2);
+			if(wayVal > waypoints[openset[test]].f_score)
+			{
+				min = test;
+			}
+			else if(wayVal < waypoints[openset[test]].f_score)
+			{
+				max = test;
+			}
+			if(wayVal == waypoints[openset[test]].f_score)
+			{
+				max = test;
+				min = test - 1;
+			}
+		}
+	}
+	return -1;
+}
+
+int GetLowestFromOpenSet()
+{
+	return openset[0];
+}
+
+int CheckIfEmptyList (int listnumber)
+{
+	int i;
+
+	for (i = 0; i < MAX_WAYPOINTS; i++)
+	{
+		if (listnumber == 1)
+		{
+			if (closedset[i])
+			{
+				//Con_DPrintf ("CheckIfEmptyList: closedset[%i]\n", i);
+				return 0;
+			}
+		}
+		else if (listnumber == 2)
+		{
+			if (openset[i])
+			{
+				//Con_DPrintf ("CheckIfEmptyList: openset[%i]\n", i);
+				return 0;
+			}
+		}
+	}
+	return 1;
+}
+
+int CheckIfWayInList (int listnumber, int waynum)
+{
+	if(listnumber == 1)
+	{
+		if(closedset[waynum])
+		{
+			//Con_DPrintf ("CheckIfWayInList: closedset[%i] = %i\n", waynum, 1);
+			return 1;
+		}
+	}
+	if(listnumber == 2)
+	{
+		if(opensetRef[waynum])
+		{
+			//Con_DPrintf ("CheckIfWayInList: openset[%i] = %i\n", waynum, 1);
+			return 1;
+		}
+	}
+	return 0;
+}
+
+float heuristic_cost_estimate (int start_way, int end_way)
+{
+	//for now we will just look the distance between.
+	return VecLength2(waypoints[start_way].origin, waypoints[end_way].origin);
+}
+
+int proces_list[MAX_WAYPOINTS];
+void reconstruct_path(int start_node, int current_node)
+{
+	int i, s, current;
+	current = current_node;
+	s = 0;
+/*
+    if (current_node == waypoints[current_node].came_from)
+        p := reconstruct_path(came_from, came_from[current_node])
+        return (p + current_node)
+    else
+        return current_node*/
+	Con_DPrintf ("\n");
+	Con_DPrintf ("reconstruct_path: start_node = %i, current_node = %i\n\n", start_node, current_node);
+	for (i = 0;i < MAX_WAYPOINTS; i++)
+	{
+		//if (closedset[i])
+		//	Con_DPrintf ("reconstruct_path: closedset[%i] = %i\n", i, closedset[i]);
+		proces_list[i] = 0;
+	}
+	proces_list[s] = -1;//-1 means the enemy is the last waypoint
+	s = 1;
+	while (1)
+	{
+		//Con_DPrintf("\nreconstruct_path: current = %i, waypoints[current].came_from = %i\n", current, waypoints[current].came_from);
+		proces_list[s] = current;//blubs, we now add the first waypoint to the path list
+		if (current == start_node)
+		{
+			Con_DPrintf("reconstruct_path: path done!\n");
+			break;
+		}
+		if (CheckIfWayInList (1, waypoints[current].came_from))
+		{
+			//Con_DPrintf("reconstruct_path: waypoints[current].came_from %i is in list!\n", waypoints[current].came_from);
+			for (i = 0;i < 8; i++)
+			{
+				//Con_DPrintf("reconstruct_path for loop: waypoints[waypoints[current].came_from].target_id[i] =  %i, current = %i\n", waypoints[waypoints[current].came_from].target_id[i], current)
+				if (waypoints[waypoints[current].came_from].target_id[i] == current)
+				{
+					//Con_DPrintf("reconstruct_path: current %i is viable target!\n", current);
+					current = waypoints[current].came_from;//woohoo, this waypoint is viable. So set it now as the current one
+					break;
+				}
+			}
+		}
+		else
+		{
+			//Con_DPrintf("reconstruct_path: skipped waypoint %i\n", waypoints[current].came_from);
+			break;
+		}
+		s++;
+	}
+	Con_DPrintf("\nreconstruct_path: dumping the final list\n");
+	for (s = MAX_WAYPOINTS - 1; s > -1; s--)
+	{
+		//if (proces_list[s])
+			//Con_DPrintf("reconstruct_path final: s = %i, proces_list[s] = %i\n", s, proces_list[s]);
+	}
+}
+
+int Pathfind (int start_way, int end_way)//note thease 2 are ARRAY locations. Not the waypoints names.
+{
+	int current, last_way;//current is for the waypoint array, last_way is a way that was used last
+	float tentative_g_score, tentative_f_score;
+	int i;
+	last_way = 0;
+	for (i = 0; i < MAX_WAYPOINTS;i++)// clear all the waypoints
+	{
+		openset[i] = 0;
+		opensetRef[i] = 0;
+		closedset[i] = 0;
+		waypoints[i].f_score = 0;
+		waypoints[i].g_score = 0;
+		waypoints[i].came_from = 0;
+	}
+	opensetLength = 0;
+
+	waypoints[start_way].g_score = 0; // Cost from start along best known path.
+	// Estimated total cost from start to goal through y.
+	waypoints[start_way].f_score = waypoints[start_way].g_score + heuristic_cost_estimate(start_way, end_way);
+
+	AddWayToList (2, start_way);// The set of tentative nodes to be evaluated, initially containing the start node
+
+	while (!CheckIfEmptyList (2))
+	{
+		//Con_DPrintf("\n");
+		current = GetLowestFromOpenSet();
+		//Con_DPrintf("Pathfind current: %i, f_score: %f, g_score: %f\n", current, waypoints[current].f_score, waypoints[current].g_score);
+		if (current == end_way)
+		{
+			Con_DPrintf("Pathfind goal reached\n");
+			reconstruct_path(start_way, end_way);
+			return 1;
+		}
+		AddWayToList (1, current);
+		RemoveWayFromList (2, current);
+
+		for (i = 0;i < 8; i++)
+		{
+
+			//Con_DPrintf("Pathfind for start\n");
+
+			if (!waypoints[waypoints[current].target_id[i]].open)
+			{
+				//if (waypoints[current].target_id[i])
+					//Con_DPrintf("Pathfind for: %i, waypoints[waypoints[current].target_id[i]].open = %i, current = %i\n", waypoints[current].target_id[i], waypoints[waypoints[current].target_id[i]].open, current);
+				continue;
+			}
+
+			tentative_g_score = waypoints[current].g_score + waypoints[current].dist[i];
+			tentative_f_score = tentative_g_score + heuristic_cost_estimate(waypoints[current].target_id[i], end_way);
+			//Con_DPrintf("Pathfind for: %i, t_f_score: %f, t_g_score: %f\n", waypoints[current].target_id[i], tentative_f_score, tentative_g_score);
+			
+			//if (CheckIfWayInList (1, waypoints[current].target_id[i]) && tentative_f_score >= waypoints[waypoints[current].target_id[i]].f_score)
+			if (CheckIfWayInList (1, waypoints[current].target_id[i]))//it was the above, but why do we care about this waypoint if it's already in the closed list? we never check 2 waypoints twice m8, the first iteration that we reach this waypoint is also the fastest way, so lets not EVER check it again.
+			{
+				//if (CheckIfWayInList (1, waypoints[current].target_id[i]))
+				//Con_DPrintf("Pathfind: waypoint %i in closed list\n", waypoints[current].target_id[i]);
+				continue;
+			}
+
+			if(tentative_f_score < waypoints[waypoints[current].target_id[i]].f_score)
+			{
+				//Con_DPrintf("Pathfind waypoint is better\n");
+				waypoints[waypoints[current].target_id[i]].g_score = tentative_g_score;
+				waypoints[waypoints[current].target_id[i]].f_score = tentative_f_score;
+			}
+
+			if (!CheckIfWayInList (2, waypoints[current].target_id[i]))
+			{
+				//Con_DPrintf("Pathfind waypoint not in list\n");
+				waypoints[waypoints[current].target_id[i]].g_score = tentative_g_score;
+				waypoints[waypoints[current].target_id[i]].f_score = tentative_f_score;
+
+				waypoints[waypoints[current].target_id[i]].came_from = current;
+				AddWayToList (2, waypoints[current].target_id[i]);
+				//Con_DPrintf("Pathfind: %i added to the openset with waypoints[current].came_from = %i, current = %i\n", waypoints[current].target_id[i], waypoints[current].came_from, current);
+			}
+		}
+		last_way = current;
+	}
+	return 0;
+}
+/*
+=================
+Get_Waypoint_Near
+
+vector Get_Waypoint_Near (entity)
+=================
+*/
+void Get_Waypoint_Near (void)
+{
+	float best_dist;
+	float dist;
+	int i, best;
+	trace_t   trace;
+	edict_t   *ent;
+
+	best = 0;
+	Con_DPrintf("Starting Get_Waypoint_Near\n");
+	ent = G_EDICT(OFS_PARM0);
+	best_dist = 1000000000;
+	dist = 0;
+
+	for (i = 0; i < MAX_WAYPOINTS; i++)
+	{
+		if (waypoints[i].open)
+		{
+			trace = SV_Move (ent->v.origin, vec3_origin, vec3_origin, waypoints[i].origin, 1, ent);
+				dist = VecLength2(waypoints[i].origin, ent->v.origin);
+
+				//Con_DPrintf("Waypoint: %i, distance: %f, fraction: %f\n", i, dist, trace.fraction);
+			if (trace.fraction >= 1)
+			{
+				if(dist < best_dist)
+				{
+					best_dist = dist;
+					best = i;
+				}
+			}
+		}
+	}
+	Con_DPrintf("'%5.1f %5.1f %5.1f', %f is %f, (%i, %i)\n", waypoints[best].origin[0],waypoints[best].origin[1], waypoints[best].origin[2], best_dist, dist, i, best);
+	VectorCopy (waypoints[best].origin, G_VECTOR(OFS_RETURN));
+}
+
+/*
+=================
+Open_Waypoint
+
+void Open_Waypoint (string, string, string, string, string, string, string, string)
+=================
+*/
+void Open_Waypoint (void)
+{
+	int i, t;
+	char *p = G_STRING(OFS_PARM0);
+
+	//Con_DPrintf("Open_Waypoint\n");
+	for (i = 1; i < MAX_WAYPOINTS; i++)
+	{
+		if (waypoints[i].special[0])//no need to open without tag
+		{
+			if (!strcmp(p, waypoints[i].special))
+			{
+				waypoints[i].open = 1;
+				//Con_DPrintf("Open_Waypoint: %i, opened\n", i);
+				t = 1;
+			}
+			else
+				continue;
+		}
+	}
+	//if (t == 0)
+	//{
+		//Con_DPrintf("Open_Waypoint: no waypoints opened\n");
+	//}
+}
+
+/*
+=================
+Close_Waypoint
+
+void Close_Waypoint (string, string, string, string, string, string, string, string)
+
+moto - basically a carbon copy of open_waypoint lol
+=================
+*/
+void Close_Waypoint (void)
+{
+	int i, t;
+	char *p = G_STRING(OFS_PARM0);
+
+	for (i = 1; i < MAX_WAYPOINTS; i++)
+	{
+		if (waypoints[i].special[0])//no need to open without tag
+		{
+			if (!strcmp(p, waypoints[i].special))
+			{
+				waypoints[i].open = 0;
+				t = 1;
+			}
+			else
+				continue;
+		}
+	}
+}
+
+/*
+=================
+Do_Pathfind
+
+float Do_Pathfind (entity zombie, entity target)
+=================
+*/
+void Do_Pathfind (void)
+{
+	float best_dist;
+	float dist;
+	int i, s, best, best_target;
+	trace_t   trace;
+	edict_t   *ent;
+	edict_t   *zombie;
+	int			entnum;
+
+	entnum = G_EDICTNUM(OFS_PARM0);
+
+	best = 0;
+	Con_DPrintf("Starting Do_Pathfind\n"); //we first need to look for closest point for both zombie and the player
+	zombie = G_EDICT(OFS_PARM0);
+	ent = G_EDICT(OFS_PARM1);
+
+	best_dist = 1000000000;
+	dist = 0;
+
+	for (i = 0; i < MAX_WAYPOINTS; i++)
+	{
+		if (waypoints[i].used && waypoints[i].open)
+		{
+			trace = SV_Move (zombie->v.origin, vec3_origin, vec3_origin, waypoints[i].origin, 1, zombie);
+			if (trace.fraction >= 1)
+			{
+				dist = VecLength2(waypoints[i].origin, zombie->v.origin);
+
+				if(dist < best_dist)
+				{
+					best_dist = dist;
+					best = i;
+				}
+			}
+		}
+	}
+
+	best_dist = 1000000000;
+	dist = 0;
+	best_target = 0;
+	for (i = 0; i < MAX_WAYPOINTS; i++)
+	{
+		if (waypoints[i].used && waypoints[i].open)
+		{
+			trace = SV_Move (ent->v.origin, vec3_origin, vec3_origin, waypoints[i].origin, 1, ent);
+			if (trace.fraction >= 1)
+			{
+				dist = VecLength2(waypoints[i].origin, ent->v.origin);
+
+				if(dist < best_dist)
+				{
+					best_dist = dist;
+					best_target = i;
+				}
+			}
+		}
+	}
+	Con_DPrintf("Starting waypoint: %i, Ending waypoint: %i\n", best, best_target);
+	if (Pathfind(best, best_target))
+	{
+		for (i = 0; i < MaxZombies; i++)
+		{
+			if (entnum == zombie_list[i].zombienum)
+			{
+				for (s = 0; s < MAX_WAYPOINTS; s++)
+				{
+					zombie_list[i].pathlist[s] = proces_list[s];
+				}
+				break;
+			}
+			if (i == MaxZombies - 1)//zombie was not in list
+			{
+				for (i = 0; i < MaxZombies; i++)
+				{
+					if (!zombie_list[i].zombienum)
+					{
+						zombie_list[i].zombienum = entnum;
+						for (s = 0; s < MAX_WAYPOINTS; s++)
+						{
+							zombie_list[i].pathlist[s] = proces_list[s];
+						}
+						break;
+					}
+				}
+				break;
+			}
+		}
+
+		if(zombie_list[i].pathlist[2] == 0 && zombie_list[i].pathlist[1] != 0)//then we are at player's waypoint!
+		{
+			Con_DPrintf("We are at player's waypoint already!\n");
+			G_FLOAT(OFS_RETURN) = -1;
+			return;
+		}
+
+		Con_DPrintf("Path found!\n");
+		G_FLOAT(OFS_RETURN) = 1;
+	}
+	else
+	{
+		Con_DPrintf("Path not found!\n");
+		G_FLOAT(OFS_RETURN) = 0;
+	}
+}
+
+
+/*
+=================
+Get_Next_Waypoint This function will return the next waypoint in zombies path and then remove it from the list
+
+vector Get_Next_Waypoint (entity)
+=================
+*/
+void Get_Next_Waypoint (void)
+{
+	int i, s;
+	s = 0;//useless initialize, because compiler likes to yell at me
+	int			entnum;
+	edict_t   *ent;//blubs added
+	vec3_t	move;
+	float *start,*mins, *maxs;
+	int currentWay = 0;
+	//int zomb = 0;
+	int skippedWays = 0;
+
+	move [0] = 0;
+	move [1] = 0;
+	move [2] = 0;
+
+	entnum = G_EDICTNUM(OFS_PARM0);
+	ent = G_EDICT(OFS_PARM0);//blubsadded
+	start = G_VECTOR(OFS_PARM1);
+	mins = G_VECTOR(OFS_PARM2);
+	maxs = G_VECTOR(OFS_PARM3);
+
+	mins[0] -= 2;
+	mins[1] -= 2;
+
+	maxs[0] += 2;
+	maxs[1] += 2;
+
+
+	for (i = 0; i < MaxZombies; i++)
+	{
+		if (entnum == zombie_list[i].zombienum)
+		{
+			for (s = MAX_WAYPOINTS - 1; s > -1; s--)
+			{
+				if (zombie_list[i].pathlist[s])
+				{
+					zombie_list[i].pathlist[s] = 0;//This is get_next, so remove our current waypoint from the list.
+
+					if(s == 1)
+					{
+						VectorCopy (move, G_VECTOR(OFS_RETURN));//we are at our last waypoint, so just return 0,0,0, this should never happen anyways, because we'll make pathfind return something else
+						Con_Printf("Warning, only one waypoint in path!\n");
+						return;
+					}
+					s-= 1;
+					currentWay = s;//We want the next waypoint
+					break;
+				}
+			}
+			break;
+		}
+	}
+	//s is the index in our path, so if s == 1
+
+	if(s == -1 || s == 0)
+	{
+		//-1?
+		//then that means only player was in path, this is just in case...
+		//we are at our last waypoint, so just return 0,0,0, this should never happen anyways, because we'll make pathfind return something else
+		//0?
+		//only 1 waypoint left in path, we can't possibly smooth the path in this scenario.
+		//next waypoint in any case is going to be player, so....
+		VectorCopy (move, G_VECTOR(OFS_RETURN));
+		return;
+	}
+
+	int iterations = 5;//that's how many segments per waypoint, pretty important number
+	float Scale = 0.5;
+	float curScale = 1;
+	float Scalar = Scale;
+	float TraceResult;
+	vec3_t toAdd;
+	vec3_t curStart;
+	vec3_t temp;
+	int q;
+	VectorCopy(waypoints[zombie_list[i].pathlist[currentWay]].origin,temp);
+	VectorCopy(temp,move);
+
+	while(1)
+	{
+		//Con_Printf("Main Vector Start: %f, %f, %f Vector End: %f, %f, %f\n",start[0],start[1],start[2],waypoints[zombie_list[i].pathlist[currentWay]].origin[0],waypoints[zombie_list[i].pathlist[currentWay]].origin[1],waypoints[zombie_list[i].pathlist[currentWay]].origin[2]);
+		TraceResult = TraceMove(start,mins,maxs,waypoints[zombie_list[i].pathlist[currentWay]].origin,MOVE_NOMONSTERS,ent);
+		if(TraceResult == 1)
+		{
+			VectorCopy(waypoints[zombie_list[i].pathlist[currentWay]].origin,move);
+			if(currentWay == 1)//we're at the end of the list, we better not go out of bounds, was 0, now 1, since 0 is for player index
+			{
+				break;
+			}
+			currentWay -= 1;
+			skippedWays += 1;
+		}
+		else
+		{
+			if(skippedWays > 0)
+			{
+				VectorCopy(waypoints[zombie_list[i].pathlist[currentWay + 1]].origin,temp);
+				VectorCopy(temp,curStart);
+				VectorSubtract(waypoints[zombie_list[i].pathlist[currentWay]].origin,curStart,toAdd);
+				for(q = 0;q < iterations; q++)
+				{
+					curScale *= Scalar;
+					VectorScale(toAdd,curScale,temp);
+					VectorAdd(temp,curStart,temp);
+					TraceResult = TraceMove(start,mins,maxs,temp,MOVE_NOMONSTERS,ent);
+					if(TraceResult ==1)
+					{
+						Scalar = Scale + 1;
+						VectorCopy(temp,move);
+					}
+					else
+					{
+						Scalar = Scale;
+					}
+				}
+			}
+			break;
+		}
+	}
+
+	Con_DPrintf("Get Next Way returns: list[%i], waypoint:%i\n",s,waypoints[zombie_list[i].pathlist[s]]);
+
+	//VectorCopy(waypoints[zombie_list[i].pathlist[s]].origin,move); //for old get_next_way
+	zombie_list[i].pathlist[s] = 0;
+
+	//Con_Printf("Skipped %i waypoints, we're moving to the %f percentage in between 2 waypoints\n",skippedWays,curScale);
+	//Con_DPrintf("'%5.1f %5.1f %5.1f'\n", move[0], move[1], move[2]);
+	VectorCopy (move, G_VECTOR(OFS_RETURN));
+}
+/*
+=================
+Get_First_Waypoint This function will return the waypoint waypoint in zombies path and then remove it from the list
+
+vector Get_First_Waypoint (entity)
+=================
+*/
+void Get_First_Waypoint (void)
+{
+	int i, s;
+	s = 0;//useless initialize, because compiler likes to yell at me
+	int			entnum;
+	edict_t   *ent;//blubs added
+	vec3_t	move;
+	float *start,*mins, *maxs;
+	int currentWay = 0;
+	//int zomb = 0;
+	int skippedWays = 0;
+
+	move [0] = 0;
+	move [1] = 0;
+	move [2] = 0;
+
+	entnum = G_EDICTNUM(OFS_PARM0);
+	ent = G_EDICT(OFS_PARM0);//blubsadded
+	start = G_VECTOR(OFS_PARM1);
+	mins = G_VECTOR(OFS_PARM2);
+	maxs = G_VECTOR(OFS_PARM3);
+
+	mins[0] -= 2;
+	mins[1] -= 2;
+
+	maxs[0] += 2;
+	maxs[1] += 2;
+
+
+	for (i = 0; i < MaxZombies; i++)
+	{
+		if (entnum == zombie_list[i].zombienum)
+		{
+			for (s = MAX_WAYPOINTS - 1; s > -1; s--)
+			{
+				if (zombie_list[i].pathlist[s])
+				{
+					currentWay = s;
+					break;
+				}
+			}
+			break;
+		}
+	}
+
+	if(s == 0)
+	{
+		//0?
+		//currentway is player, just return world
+		VectorCopy (move, G_VECTOR(OFS_RETURN));
+		return;
+	}
+	//1? only one way in list, we can't possibly smooth list when we only have one...
+
+	int iterations = 5;//that's how many segments per waypoint, pretty important number
+	float Scale = 0.5;
+	float curScale = 1;
+	float Scalar = Scale;
+	float TraceResult;
+	vec3_t toAdd;
+	vec3_t curStart;
+	vec3_t temp;
+	int q;
+	VectorCopy(waypoints[zombie_list[i].pathlist[currentWay]].origin,temp);
+	VectorCopy(temp,move);
+
+	while(1)
+	{
+		//Con_Printf("Main Vector Start: %f, %f, %f Vector End: %f, %f, %f\n",start[0],start[1],start[2],waypoints[zombie_list[i].pathlist[currentWay]].origin[0],waypoints[zombie_list[i].pathlist[currentWay]].origin[1],waypoints[zombie_list[i].pathlist[currentWay]].origin[2]);
+		TraceResult = TraceMove(start,mins,maxs,waypoints[zombie_list[i].pathlist[currentWay]].origin,MOVE_NOMONSTERS,ent);
+		if(TraceResult == 1)
+		{
+			VectorCopy(waypoints[zombie_list[i].pathlist[currentWay]].origin,move);
+			if(currentWay == 1)//we're at the end of the list, we better not go out of bounds//was 0, now 1 since 0 is for enemy
+			{
+				break;
+			}
+			currentWay -= 1;
+			skippedWays += 1;
+		}
+		else
+		{
+			if(skippedWays > 0)
+			{
+				VectorCopy(waypoints[zombie_list[i].pathlist[currentWay + 1]].origin,temp);
+				VectorCopy(temp,curStart);
+				VectorSubtract(waypoints[zombie_list[i].pathlist[currentWay]].origin,curStart,toAdd);
+				for(q = 0;q < iterations; q++)
+				{
+					curScale *= Scalar;
+					VectorScale(toAdd,curScale,temp);
+					VectorAdd(temp,curStart,temp);
+					//Con_Printf("subVector Start: %f, %f, %f Vector End: %f, %f, %f\n",start[0],start[1],start[2],temp[0],temp[1],temp[2]);
+					TraceResult = TraceMove(start,mins,maxs,temp,MOVE_NOMONSTERS,ent);
+					if(TraceResult ==1)
+					{
+						Scalar = Scale + 1;
+						VectorCopy(temp,move);
+					}
+					else
+					{
+						Scalar = Scale;
+					}//we need a way to go back to the other value if it doesn't work!, so lets work with temp, but RETURN a different value other than temp!
+				}
+			}
+			break;
+		}
+	}
+
+	Con_DPrintf("Get First Way returns: %i\n",s);
+	//VectorCopy(waypoints[zombie_list[i].pathlist[s]].origin,move);//for old get_first_way
+	zombie_list[i].pathlist[s] = 0;
+	//Con_Printf("Skipped %i waypoints, we're moving to the %f percentage in between 2 waypoints\n",skippedWays,curScale);
+	//Con_DPrintf("'%5.1f %5.1f %5.1f'\n", move[0], move[1], move[2]);
+	VectorCopy (move, G_VECTOR(OFS_RETURN));
+}
+
 
 // 2001-09-20 QuakeC file access by FrikaC/Maddes  start
 /*
@@ -2162,7 +3018,7 @@ void PF_makestatic (void)
 
 	MSG_WriteByte (&sv.signon,svc_spawnstatic);
 
-	MSG_WriteByte (&sv.signon, SV_ModelIndex(pr_strings + ent->v.model));
+	MSG_WriteByte (&sv.signon, SV_ModelIndex(PR_GetString(ent->v.model)));
 
 	MSG_WriteByte (&sv.signon, ent->v.frame);
 	MSG_WriteByte (&sv.signon, ent->v.colormap);
@@ -2273,6 +3129,96 @@ void PF_Fixme (void)
 
 /*
 =================
+PF_SongEgg
+
+plays designated easter egg track
+
+songegg(trackname)
+=================
+*/
+void PF_SongEgg (void)
+{
+	char trackname;
+	
+	trackname = G_STRING(OFS_PARM0);
+
+	//MSG_WriteByte (&sv.reliable_datagram,   svc_songegg);
+	//MSG_WriteString (&sv.reliable_datagram, trackname);
+}
+
+/*
+=================
+PF_MaxAmmo
+
+activates max ammo text in HUD
+
+nzp_maxammo()
+=================
+*/
+void PF_MaxAmmo(void)
+{
+	MSG_WriteByte(&sv.reliable_datagram, svc_maxammo);
+}
+
+
+/*
+=================
+PF_achievement
+
+unlocks the achievement number for entity
+
+achievement(clientent, value)
+=================
+*/
+void PF_achievement (void)
+{
+	//Con_Printf("ERROR: PF_achievement not implemented\n");
+	int		ach;
+	client_t	*client;
+	int			entnum;
+
+	entnum = G_EDICTNUM(OFS_PARM0);
+	ach = G_FLOAT(OFS_PARM1);/*
+
+	if (entnum < 1 || entnum > svs.maxclients)
+	{
+		Con_DPrintf ("tried to unlock ach to a non-client\n");
+		return;
+	}
+
+	//Con_Printf (va("Achievement? %i\n", ach));	// JPG
+	client = &svs.clients[entnum-1];
+
+	MSG_WriteByte (&client->message,svc_achievement);
+	MSG_WriteByte (&client->message, ach);*/
+}
+
+/*
+=================
+PF_updateLimb
+
+updates zombies limb
+
+PF_updateLimb(zombieent, value. limbent)
+=================
+*/
+void PF_updateLimb (void)
+{
+	int		limb;
+	int		zombieent, limbent;
+	//Con_Printf("ERROR: PF_updateLimb not implemented\n");
+
+	zombieent = G_EDICTNUM(OFS_PARM0);
+	limb = G_FLOAT(OFS_PARM1);
+	limbent = G_EDICTNUM(OFS_PARM2);/*
+	MSG_WriteByte (&sv.reliable_datagram,   svc_limbupdate);
+	MSG_WriteByte (&sv.reliable_datagram,  limb);
+	MSG_WriteShort (&sv.reliable_datagram,  zombieent);
+	MSG_WriteShort (&sv.reliable_datagram,  limbent);*/
+}
+
+/*
+=================
 PF_tokenize
 
 float tokenize (string) = #441
@@ -2337,7 +3283,7 @@ PF_traceon,
 PF_traceoff,
 PF_eprint,	// void(entity e) debug print an entire entity
 PF_walkmove, // float(float yaw, float dist) walkmove
-PF_Fixme, // #33
+PF_updateLimb, // #33
 PF_droptofloor,
 PF_lightstyle,
 PF_rint,
@@ -2391,17 +3337,17 @@ PF_precache_sound,		// precache_sound2 is different only for qcc
 PF_precache_file,
 
 PF_setspawnparms,
-PF_Fixme, // #79
+PF_achievement, // #79
 PF_Fixme, // #80
 PF_stof, // #81
 PF_Fixme, // #82
-PF_Fixme, // #83
-PF_Fixme, // #84
-PF_Fixme, // #85
-PF_Fixme, // #86
-PF_Fixme, // #87
-PF_Fixme, // #88
-PF_Fixme, // #89
+Get_Waypoint_Near, // #83
+Do_Pathfind, // #84
+Open_Waypoint, // #85
+Get_Next_Waypoint, // #86
+PF_useprint, // #87
+Get_First_Waypoint, // #88
+Close_Waypoint, // #89
 PF_tracebox, // #90
 PF_Fixme, // #91
 PF_Fixme, // #92
@@ -2754,8 +3700,71 @@ PF_Fixme,
 PF_Fixme, 
 PF_Fixme, 
 PF_tokenize, // #441
-PF_ArgV // #442
+PF_ArgV, // #442
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme,
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme,
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme, 
+PF_SongEgg, // #500
+PF_MaxAmmo, // #501
+PF_Fixme, 
+PF_Fixme, 
+PF_Fixme,
 };
 
 builtin_t *pr_builtins = pr_builtin;
 int pr_numbuiltins = sizeof(pr_builtin)/sizeof(pr_builtin[0]);
+

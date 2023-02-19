@@ -1,0 +1,2 @@
+net_wso.o: net_wso.c /usr/include/stdc-predef.h
+/usr/include/stdc-predef.h:

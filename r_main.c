@@ -130,6 +130,8 @@ float	se_time1, se_time2, de_time1, de_time2, dv_time1, dv_time2;
 
 void R_MarkLeaves (void);
 
+cvar_t	r_forcemiplevel = {"r_forcemiplevel","10"};
+
 cvar_t	r_draworder = {"r_draworder","0"};
 cvar_t	r_speeds = {"r_speeds","0"};
 cvar_t	r_timegraph = {"r_timegraph","0"};
@@ -207,6 +209,7 @@ void R_Init (void)
 	Cmd_AddCommand ("timerefresh", R_TimeRefresh_f);	
 	Cmd_AddCommand ("pointfile", R_ReadPointFile_f);	
 
+	Cvar_RegisterVariable (&r_forcemiplevel);
 	Cvar_RegisterVariable (&r_draworder);
 	Cvar_RegisterVariable (&r_speeds);
 	Cvar_RegisterVariable (&r_timegraph);
@@ -474,7 +477,7 @@ void R_ViewChanged (vrect_t *pvrect, int lineadj, float aspect)
 	screenedge[3].type = PLANE_ANYZ;
 	
 	for (i=0 ; i<4 ; i++)
-		VectorNormalize (screenedge[i].normal);
+		VectorNormalizeNoRet (screenedge[i].normal);
 
 	res_scale = sqrt ((double)(r_refdef.vrect.width * r_refdef.vrect.height) /
 			          (320.0 * 152.0)) *
@@ -640,9 +643,6 @@ void R_DrawViewModel (void)
 	dlight_t	*dl;
 	
 	if (!r_drawviewmodel.value || r_fov_greater_than_90)
-		return;
-
-	if (cl.items & IT_INVISIBILITY)
 		return;
 
 	if (cl.stats[STAT_HEALTH] <= 0)

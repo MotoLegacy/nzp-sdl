@@ -58,6 +58,22 @@ static mvertex_t	*pfrontenter, *pfrontexit;
 static qboolean		makeclippededge;
 
 
+/*
+=================
+R_CullBox
+Returns true if the box is completely outside the frustom
+=================
+*/
+qboolean R_CullBox (vec3_t mins, vec3_t maxs)
+{
+	int		i;
+
+	for (i=0 ; i<4 ; i++)
+		if (BoxOnPlaneSide (mins, maxs, &pfrustum_indexes[i]) == 2)
+			return true;
+	return false;
+}
+
 //===========================================================================
 
 /*

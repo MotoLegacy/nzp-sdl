@@ -90,7 +90,7 @@ Max_Fps_f -- ericw
 static void Max_Fps_f (cvar_t *var)
 {
 	if (var->value > 72)
-		Con_Warning ("host_maxfps above 72 breaks physics.\n");
+		Con_Printf("host_maxfps above 72 breaks physics.\n");
 }
 
 extern void IN_MLookDown (void);
@@ -272,6 +272,7 @@ void Host_WriteConfiguration (void)
 		}
 		
 		Key_WriteBindings (f);
+		Key_WriteDTBindings (f);
 		Cvar_WriteVariables (f);
 
 		fclose (f);
@@ -399,12 +400,6 @@ void SV_DropClient (qboolean crash)
 		MSG_WriteByte (&client->message, svc_updatename);
 		MSG_WriteByte (&client->message, host_client - svs.clients);
 		MSG_WriteString (&client->message, "");
-		MSG_WriteByte (&client->message, svc_updatefrags);
-		MSG_WriteByte (&client->message, host_client - svs.clients);
-		MSG_WriteShort (&client->message, 0);
-		MSG_WriteByte (&client->message, svc_updatecolors);
-		MSG_WriteByte (&client->message, host_client - svs.clients);
-		MSG_WriteByte (&client->message, 0);
 	}
 }
 
@@ -487,6 +482,11 @@ This clears all the memory used by both the client and server, but does
 not reinitialize anything.
 ================
 */
+extern int perk_order[9];
+extern int current_perk_order;
+extern double Hitmark_Time, crosshair_spread_time;
+extern float cur_spread;
+extern float crosshair_offset_step;
 void Host_ClearMemory (void)
 {
 	Con_DPrintf ("Clearing memory\n");
@@ -498,6 +498,20 @@ void Host_ClearMemory (void)
 	cls.signon = 0;
 	memset (&sv, 0, sizeof(sv));
 	memset (&cl, 0, sizeof(cl));
+	perk_order[0] = 0;
+	perk_order[1] = 0;
+	perk_order[2] = 0;
+	perk_order[3] = 0;
+	perk_order[4] = 0;
+	perk_order[5] = 0;
+	perk_order[6] = 0;
+	perk_order[7] = 0;
+	cl.perks = 0;
+	current_perk_order = 0;
+	crosshair_spread_time = 0;
+	crosshair_offset_step = 0;
+	cur_spread = 0;
+	Hitmark_Time = 0;
 }
 
 
@@ -921,14 +935,14 @@ void Host_Init (quakeparms_t *parms)
 
 #endif	// _WIN32
 		CDAudio_Init ();
-		Sbar_Init ();
+		HUD_Init ();
 		CL_Init ();
 #ifdef _WIN32 // on non win32, mouse comes before video for security reasons
 		IN_Init ();
 #endif
 	}
 
-	Cbuf_InsertText ("exec quake.rc\n");
+	Cbuf_InsertText ("exec nzp.rc\n");
         IN_MLookDown();
 
 	Hunk_AllocName (0, "-HOST_HUNKLEVEL-");
@@ -936,7 +950,7 @@ void Host_Init (quakeparms_t *parms)
 
 	host_initialized = true;
 	
-	Sys_Printf ("========Quake Initialized=========\n");	
+	Sys_Printf ("========Nazi Zombies: Portable Initialized=========\n");	
 }
 
 

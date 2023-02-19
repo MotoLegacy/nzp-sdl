@@ -28,6 +28,10 @@ byte converted_pixels[MAX_SINGLE_PLANE_PIXEL_SIZE];
 byte temp_pixel_storage_pixels[MAX_SINGLE_PLANE_PIXEL_SIZE*4]; // naievil -- rgba storage for max pic size 
 // naievil -- texture conversion end
 
+//TGA Begin
+int		image_width;
+int		image_height;
+
 typedef struct {
 	vrect_t	rect;
 	int		width;
@@ -39,6 +43,8 @@ typedef struct {
 static rectdesc_t	r_rectdesc;
 
 byte		*draw_chars;				// 8*8 graphic characters
+char		*sniper_scope;
+
 qpic_t		*draw_disc;
 qpic_t		*draw_backtile;
 
@@ -51,7 +57,7 @@ typedef struct cachepic_s
 	cache_user_t	cache;
 } cachepic_t;
 
-#define	MAX_CACHED_PICS		128
+#define	MAX_CACHED_PICS		256
 cachepic_t	menu_cachepics[MAX_CACHED_PICS];
 int			menu_numcachepics;
 
@@ -97,7 +103,41 @@ qpic_t	*Draw_CachePic (char *path)
 	dat = (qpic_t *)pic->cache.data;
 	if (!dat)
 	{
+	#if 1
+		// naievil -- this is the start of the stupid texture conversion stuff 
+		// the goal here is a few steps: open file and grab data, 
+		// then convert to rgb, convert picture to qpal, upload data to cache
+		// then display
+
+		// clear just in case
+		memset(temp_pixel_storage_pixels, 0, MAX_SINGLE_PLANE_PIXEL_SIZE*4);
+		memset(converted_pixels, 0, MAX_SINGLE_PLANE_PIXEL_SIZE);
+
+		// load the image into the buffer
+		int success = loadtextureimage (path, -1, -1, false, false);
+		if (!success) {
+			goto bail;
+		}
+		// Convert to qpal
+		int converted_counter = 0;
+		for (int i = 0; i < image_width * image_height * 4; i+= 4) {
+			converted_pixels[converted_counter] = findclosestpalmatch(temp_pixel_storage_pixels[i], temp_pixel_storage_pixels[i + 1], temp_pixel_storage_pixels[i + 2], temp_pixel_storage_pixels[i + 3]);
+			converted_counter++;
+		}
+
+		COM_LoadPictoCache(path, &pic->cache, image_width, image_height, converted_pixels);
+		dat = (qpic_t *) pic->cache.data;
+		if (!dat) 
+		{
+#endif 
+
+bail:
 		Sys_Error ("Draw_CachePic: failed to load %s", path);
+		}
+		else 
+		{
+			Con_DPrintf("Finished conversion of %s\n", path);
+		}
 	}
 
 	SwapPic (dat);
@@ -124,6 +164,8 @@ void Draw_Init (void)
 	r_rectdesc.height = draw_backtile->height;
 	r_rectdesc.ptexbytes = draw_backtile->data;
 	r_rectdesc.rowbytes = draw_backtile->width;
+
+	sniper_scope = "gfx/hud/scope";
 }
 
 
@@ -228,6 +270,13 @@ void Draw_Character (int x, int y, int num)
 	}
 }
 
+void Draw_CharacterRGBA(int x, int y, int num, float r, float g, float b, float a, int scale)
+{
+	if (a > 127)
+	{
+		Draw_Character(x, y, num);
+	}
+}
 /*
 ================
 Draw_String
@@ -241,6 +290,11 @@ void Draw_String (int x, int y, char *str)
 		str++;
 		x += 8;
 	}
+}
+
+void Draw_ColoredString(int x, int y, char *str, float r, float g, float b, float a, int scale) 
+{
+	Draw_String(x, y, str);
 }
 
 /*
@@ -288,6 +342,17 @@ void Draw_DebugChar (char num)
 
 /*
 =============
+Draw_AlphaPic
+=============
+*/
+void Draw_AlphaPic (int x, int y, qpic_t *pic, float alpha)
+{
+	Draw_Pic(x, y, pic);
+}
+
+
+/*
+=============
 Draw_Pic
 =============
 */
@@ -302,6 +367,7 @@ void Draw_Pic (int x, int y, qpic_t *pic)
 		(y < 0) ||
 		(y + pic->height > vid.height))
 	{
+		Con_Printf("pic->width: %d pic->height: %d\n", pic->width, pic->height);
 		Sys_Error ("Draw_Pic: bad coordinates");
 	}
 
@@ -336,6 +402,25 @@ void Draw_Pic (int x, int y, qpic_t *pic)
 	}
 }
 
+/*
+=============
+Draw_StretchPic
+=============
+*/
+void Draw_StretchPic (int x, int y, qpic_t *pic, int x_value, int y_value)
+{
+	Draw_Pic(x, y, pic);
+}
+
+/*
+=============
+Draw_ColorPic
+=============
+*/
+void Draw_ColorPic (int x, int y, qpic_t *pic, float r, float g , float b, float a)
+{
+	Draw_Pic(x, y, pic);
+}
 
 /*
 =============
@@ -351,6 +436,7 @@ void Draw_TransPic (int x, int y, qpic_t *pic)
 	if (x < 0 || (unsigned)(x + pic->width) > vid.width || y < 0 ||
 		 (unsigned)(y + pic->height) > vid.height)
 	{
+		Con_Printf("pic->width: %d pic->height: %d\n", pic->width, pic->height);
 		Sys_Error ("Draw_TransPic: bad coordinates");
 	}
 		
@@ -552,20 +638,8 @@ void Draw_ConsoleBackground (int lines)
 
 	conback = Draw_CachePic ("gfx/conback.lmp");
 
-// hack the version number directly into the pic
-#ifdef _WIN32
-	sprintf (ver, "(WinQuake) %4.2f", (float)VERSION);
-	dest = conback->data + 320*186 + 320 - 11 - 8*strlen(ver);
-#elif defined(X11)
-	sprintf (ver, "(X11 Quake %2.2f) %4.2f", (float)X11_VERSION, (float)VERSION);
-	dest = conback->data + 320*186 + 320 - 11 - 8*strlen(ver);
-#elif defined(__linux__)
-	sprintf (ver, "(Linux Quake %2.2f) %4.2f", (float)LINUX_VERSION, (float)VERSION);
-	dest = conback->data + 320*186 + 320 - 11 - 8*strlen(ver);
-#else
 	dest = conback->data + 320 - 43 + 320*186;
-	sprintf (ver, "%4.2f", VERSION);
-#endif
+	sprintf (ver, "%.2f", (float)VERSION);
 
 	for (x=0 ; x<strlen(ver) ; x++)
 		Draw_CharToConback (ver[x], dest+(x<<3));
@@ -806,6 +880,63 @@ void Draw_TileClear (int x, int y, int w, int h)
 	}
 }
 
+/* sample a 24-bit RGB value to one of the colours on the existing 8-bit palette */
+unsigned char convert_24_to_8(const unsigned char palette[768], const int rgb[3])
+{
+  int i, j;
+  int best_index = -1;
+  int best_dist = 0;
+
+  for (i = 0; i < 256; i+=1)
+  {
+    int dist = 0;
+
+    for (j = 0; j < 3; j++)
+    {
+    /* note that we could use RGB luminosity bias for greater accuracy, but quake's colormap apparently didn't do this */
+      int d = abs(rgb[j] - palette[i*3+j]);
+      dist += d * d;
+    }
+
+    if (best_index == -1 || dist < best_dist)
+    {
+      best_index = i;
+      best_dist = dist;
+    }
+  }
+
+  //Con_Printf("RGB: %d %d %d\tBest index: %d\n", rgb[0], rgb[1], rgb[2], best_index);
+
+  return (unsigned char)best_index;
+}
+
+byte findclosestpalmatch(byte r, byte g, byte b, byte a)
+{
+	// naievil -- force alpha
+	if (a == 0 || a < 128) {
+		return 255;
+	}
+
+	int rgb[3];
+	rgb[0] = r;
+	rgb[1] = g; 
+	rgb[2] = b;
+
+	return (byte)convert_24_to_8(host_basepal, rgb);
+}
+
+/*
+=============
+Draw_FillByColor
+
+Fills a box of pixels with a single color
+=============
+*/
+void Draw_FillByColor (int x, int y, int w, int h, float r, float g, float b, float a)
+{
+	int c = (int)findclosestpalmatch((byte)r, (byte)g, (byte)b, (byte)a);
+	Draw_Fill(x, y, w, h, c);
+}
 
 /*
 =============
@@ -872,6 +1003,324 @@ void Draw_FadeScreen (void)
 
 //=============================================================================
 
+extern cvar_t crosshair;
+extern qboolean croshhairmoving;
+//extern cvar_t cl_zoom;
+extern char *hitmark;
+double Hitmark_Time, crosshair_spread_time;
+float cur_spread;
+float crosshair_offset_step;
+
+int CrossHairWeapon (void)
+{
+    int i;
+	switch(cl.stats[STAT_ACTIVEWEAPON])
+	{
+		case W_COLT:
+		case W_BIATCH:
+			i = 15;
+			break;
+		case W_KAR:
+		case W_ARMAGEDDON:
+			i = 50;
+			break;
+		case W_THOMPSON:
+		case W_GIBS:
+			i = 10;
+			break;
+		case W_357:
+		case W_KILLU:
+			i = 10;
+			break;
+		case W_BAR:
+		case W_WIDOW:
+			i = 10;
+			break;
+		case W_BROWNING:
+		case W_ACCELERATOR:
+			i = 20;
+			break;
+		case W_DB:
+		case W_BORE:
+			i = 25;
+			break;
+		case W_FG:
+		case W_IMPELLER:
+			i = 10;
+			break;
+		case W_GEWEHR:
+		case W_COMPRESSOR:
+			i = 10;
+			break;
+		case W_KAR_SCOPE:
+		case W_HEADCRACKER:
+			i = 50;
+			break;
+		case W_M1:
+		case W_M1000:
+			i = 10;
+			break;
+		case W_M1A1:
+		case W_WIDDER:
+			i = 10;
+			break;
+		case W_MP40:
+		case W_AFTERBURNER:
+			i = 10;
+			break;
+		case W_MG:
+		case W_BARRACUDA:
+			i = 20;
+			break;
+		case W_PANZER:
+		case W_LONGINUS:
+			i = 0;
+			break;
+		case W_PPSH:
+		case W_REAPER:
+			i = 10;
+			break;
+		case W_PTRS:
+		case W_PENETRATOR:
+			i = 50;
+			break;
+		case W_RAY:
+		case W_PORTER:
+			i = 10;
+			break;
+		case W_SAWNOFF:
+		case W_SNUFF:
+			i = 30;
+			break;
+		case W_STG:
+		case W_SPATZ:
+			i = 10;
+			break;
+		case W_TRENCH:
+		case W_GUT:
+			i = 25;
+			break;
+		case W_TYPE:
+		case W_SAMURAI:
+			i = 10;
+			break;
+		case W_MP5:
+			i = 10;
+			break;
+		case W_TESLA:
+			i = 0;
+			break;
+		default:
+			i = 0;
+			break;
+	}
+
+    if (cl.perks & 64)
+        i *= 0.65;
+
+    return i;
+}
+int CrossHairMaxSpread (void)
+{
+	int i;
+	switch(cl.stats[STAT_ACTIVEWEAPON])
+	{
+		case W_COLT:
+		case W_BIATCH:
+			i = 30;
+			break;
+		case W_KAR:
+		case W_ARMAGEDDON:
+			i = 75;
+			break;
+		case W_THOMPSON:
+		case W_GIBS:
+			i = 25;
+			break;
+		case W_357:
+		case W_KILLU:
+			i = 20;
+			break;
+		case W_BAR:
+		case W_WIDOW:
+			i = 35;
+			break;
+		case W_BROWNING:
+		case W_ACCELERATOR:
+			i = 50;
+			break;
+		case W_DB:
+		case W_BORE:
+			i = 25;
+			break;
+		case W_FG:
+		case W_IMPELLER:
+			i = 40;
+			break;
+		case W_GEWEHR:
+		case W_COMPRESSOR:
+			i = 35;
+			break;
+		case W_KAR_SCOPE:
+		case W_HEADCRACKER:
+			i = 75;
+			break;
+		case W_M1:
+		case W_M1000:
+			i = 35;
+			break;
+		case W_M1A1:
+		case W_WIDDER:
+			i = 35;
+			break;
+		case W_MP40:
+		case W_AFTERBURNER:
+			i = 25;
+			break;
+		case W_MG:
+		case W_BARRACUDA:
+			i = 50;
+			break;
+		case W_PANZER:
+		case W_LONGINUS:
+			i = 0;
+			break;
+		case W_PPSH:
+		case W_REAPER:
+			i = 25;
+			break;
+		case W_PTRS:
+		case W_PENETRATOR:
+			i = 75;
+			break;
+		case W_RAY:
+		case W_PORTER:
+			i = 20;
+			break;
+		case W_SAWNOFF:
+		case W_SNUFF:
+			i = 30;
+			break;
+		case W_STG:
+		case W_SPATZ:
+			i = 35;
+			break;
+		case W_TRENCH:
+		case W_GUT:
+			i = 25;
+			break;
+		case W_TYPE:
+		case W_SAMURAI:
+			i = 25;
+			break;
+		case W_MP5:
+			i = 25;
+			break;
+		case W_TESLA:
+			i = 0;
+			break;
+		default:
+			i = 0;
+			break;
+	}
+
+    if (cl.perks & 64)
+        i *= 0.65;
+
+    return i;
+}
+
+/*
+================
+Draw_Crosshair
+================
+*/
+
+extern float crosshair_opacity;
+void Draw_Crosshair (void)
+{	
+	
+	if (cl.stats[STAT_HEALTH] < 20) 
+		return;
+
+	if (!crosshair_opacity)
+		crosshair_opacity = 255;
+
+	float col;
+
+	if (sv_player->v.facingenemy == 1) {
+		col = 0;
+	} else {
+		col = 255;
+	}
+
+	// crosshair moving
+	if (crosshair_spread_time > sv.time && crosshair_spread_time)
+    {
+        cur_spread = cur_spread + 10;
+		crosshair_opacity = 128;
+
+		if (cur_spread >= CrossHairMaxSpread())
+			cur_spread = CrossHairMaxSpread();
+    }
+	// crosshair not moving
+    else if (crosshair_spread_time < sv.time && crosshair_spread_time)
+    {
+        cur_spread = cur_spread - 4;
+		crosshair_opacity = 255;
+
+		if (cur_spread <= 0) {
+			cur_spread = 0;
+			crosshair_spread_time = 0;
+		}
+    }
+
+	if (cl.stats[STAT_ACTIVEWEAPON] == W_M2 || cl.stats[STAT_ACTIVEWEAPON] == W_TESLA || cl.stats[STAT_ACTIVEWEAPON] == W_DG3)
+	{
+		Draw_CharacterRGBA((vid.width)/2-4, (vid.height)/2, 'O', 255, col, col, crosshair_opacity, 1);
+	}
+	else if (crosshair.value == 1 && cl.stats[STAT_ZOOM] != 1 && cl.stats[STAT_ZOOM] != 2 && cl.stats[STAT_ACTIVEWEAPON] != W_PANZER)
+    {
+        int x_value, y_value;
+        int crosshair_offset = CrossHairWeapon() + cur_spread;
+		if (CrossHairMaxSpread() < crosshair_offset || croshhairmoving)
+			crosshair_offset = CrossHairMaxSpread();
+
+		if (sv_player->v.view_ofs[2] == 8) {
+			crosshair_offset *= 0.80;
+		} else if (sv_player->v.view_ofs[2] == -10) {
+			crosshair_offset *= 0.65;
+		}
+
+		crosshair_offset_step += (crosshair_offset - crosshair_offset_step) * 0.5;
+
+		x_value = (vid.width - 3)/2 - crosshair_offset_step;
+		y_value = (vid.height - 1)/2;
+		Draw_FillByColor(x_value, y_value, 3, 1, 255, (int)col, (int)col, 255);
+
+		x_value = (vid.width - 3)/2 + crosshair_offset_step;
+		y_value = (vid.height - 1)/2;
+		Draw_FillByColor(x_value, y_value, 3, 1, 255, (int)col, (int)col, 255);
+
+		x_value = (vid.width - 1)/2;
+		y_value = (vid.height - 3)/2 - crosshair_offset_step;
+		Draw_FillByColor(x_value, y_value, 1, 3, 255, (int)col, (int)col, 255);
+
+		x_value = (vid.width - 1)/2;
+		y_value = (vid.height - 3)/2 + crosshair_offset_step;
+		Draw_FillByColor(x_value, y_value, 1, 3, 255, (int)col, (int)col, 255);
+    }
+    else if (crosshair.value && cl.stats[STAT_ZOOM] != 1 && cl.stats[STAT_ZOOM] != 2)
+		Draw_CharacterRGBA((vid.width - 8)/2, (vid.height - 8)/2, '.', 255, col, col, crosshair_opacity, 1);
+	if (cl.stats[STAT_ZOOM] == 2)
+		Draw_TransPic (0, 0, Draw_CachePic(sniper_scope));
+   	if (Hitmark_Time > sv.time)
+        Draw_TransPic ((vid.width - Draw_CachePic(hitmark)->width)/2,(vid.height - Draw_CachePic(hitmark)->height)/2, Draw_CachePic(hitmark));
+        
+}
+
+
+
 /*
 ================
 Draw_BeginDisc
@@ -901,47 +1350,524 @@ void Draw_EndDisc (void)
 	D_EndDirectRect (vid.width - 24, 0, 24, 24);
 }
 
-/* sample a 24-bit RGB value to one of the colours on the existing 8-bit palette */
-unsigned char convert_24_to_8(const unsigned char palette[768], const int rgb[3])
+//Diabolickal TGA Begin
+#define	IMAGE_MAX_DIMENSIONS	512
+
+/*
+=================================================================
+  PCX Loading
+=================================================================
+*/
+
+typedef struct
 {
-  int i, j;
-  int best_index = -1;
-  int best_dist = 0;
+    char	manufacturer;
+    char	version;
+    char	encoding;
+    char	bits_per_pixel;
+    unsigned short	xmin,ymin,xmax,ymax;
+    unsigned short	hres,vres;
+    unsigned char	palette[48];
+    char	reserved;
+    char	color_planes;
+    unsigned short	bytes_per_line;
+    unsigned short	palette_type;
+    char	filler[58];
+    unsigned 	data;			// unbounded
+} pcx_t;
 
-  for (i = 0; i < 256; i+=1)
-  {
-    int dist = 0;
+/*
+============
+LoadPCX
+============
+*/
+byte* LoadPCX (FILE *f, int matchwidth, int matchheight)
+{
+	pcx_t	*pcx, pcxbuf;
+	byte	palette[768];
+	byte	*pix, *image_rgba;
+	int		x, y;
+	int		dataByte, runLength;
+	int		count;
 
-    for (j = 0; j < 3; j++)
-    {
-    /* note that we could use RGB luminosity bias for greater accuracy, but quake's colormap apparently didn't do this */
-      int d = abs(rgb[j] - palette[i*3+j]);
-      dist += d * d;
-    }
+//
+// parse the PCX file
+//
+	fread (&pcxbuf, 1, sizeof(pcxbuf), f);
+	pcx = &pcxbuf;
 
-    if (best_index == -1 || dist < best_dist)
-    {
-      best_index = i;
-      best_dist = dist;
-    }
-  }
+	if (pcx->manufacturer != 0x0a
+		|| pcx->version != 5
+		|| pcx->encoding != 1
+		|| pcx->bits_per_pixel != 8
+		|| pcx->xmax >= 514
+		|| pcx->ymax >= 514)
+	{
+		Con_Printf ("Bad pcx file\n");
+		return NULL;
+	}
+	if (matchwidth && (pcx->xmax+1) != matchwidth)
+		return NULL;
+	if (matchheight && (pcx->ymax+1) != matchheight)
+		return NULL;
+	// seek to palette
+	fseek (f, -768, SEEK_END);
+	fread (palette, 1, 768, f);
+	fseek (f, sizeof(pcxbuf) - 4, SEEK_SET);
+	count = (pcx->xmax+1) * (pcx->ymax+1);
+	image_rgba = (byte*)malloc( count * 4);
 
-  //Con_Printf("RGB: %d %d %d\tBest index: %d\n", rgb[0], rgb[1], rgb[2], best_index);
+	for (y=0 ; y<=pcx->ymax ; y++)
+	{
+		pix = image_rgba + 4*y*(pcx->xmax+1);
+		for (x=0 ; x<=pcx->xmax ; ) // muff - fixed - was referencing ymax
+		{
+			dataByte = fgetc(f);
+			if((dataByte & 0xC0) == 0xC0)
+			{
+				runLength = dataByte & 0x3F;
+				dataByte = fgetc(f);
+			}
+			else
+				runLength = 1;
 
-  return (unsigned char)best_index;
+			while(runLength-- > 0)
+			{
+				pix[0] = palette[dataByte*3];
+				pix[1] = palette[dataByte*3+1];
+				pix[2] = palette[dataByte*3+2];
+				pix[3] = 255;
+				pix += 4;
+				x++;
+			}
+		}
+	}
+	image_width = pcx->xmax+1;
+	image_height = pcx->ymax+1;
+
+	fclose(f);
+	return image_rgba;
 }
 
-byte findclosestpalmatch(byte r, byte g, byte b, byte a)
+
+/*
+=========================================================
+
+			Targa
+
+=========================================================
+*/
+
+#define TGA_MAXCOLORS 16384
+
+/* Definitions for image types. */
+#define TGA_Null	0	/* no image data */
+#define TGA_Map		1	/* Uncompressed, color-mapped images. */
+#define TGA_RGB		2	/* Uncompressed, RGB images. */
+#define TGA_Mono	3	/* Uncompressed, black and white images. */
+#define TGA_RLEMap	9	/* Runlength encoded color-mapped images. */
+#define TGA_RLERGB	10	/* Runlength encoded RGB images. */
+#define TGA_RLEMono	11	/* Compressed, black and white images. */
+#define TGA_CompMap	32	/* Compressed color-mapped data, using Huffman, Delta, and runlength encoding. */
+#define TGA_CompMap4	33	/* Compressed color-mapped data, using Huffman, Delta, and runlength encoding. 4-pass quadtree-type process. */
+
+/* Definitions for interleave flag. */
+#define TGA_IL_None	0	/* non-interleaved. */
+#define TGA_IL_Two	1	/* two-way (even/odd) interleaving */
+#define TGA_IL_Four	2	/* four way interleaving */
+#define TGA_IL_Reserved	3	/* reserved */
+
+/* Definitions for origin flag */
+#define TGA_O_UPPER	0	/* Origin in lower left-hand corner. */
+#define TGA_O_LOWER	1	/* Origin in upper left-hand corner. */
+
+typedef struct _TargaHeader
 {
-	// naievil -- force alpha
-	if (a == 0 || a < 128) {
-		return 255;
+	unsigned char 	id_length, colormap_type, image_type;
+	unsigned short	colormap_index, colormap_length;
+	unsigned char	colormap_size;
+	unsigned short	x_origin, y_origin, width, height;
+	unsigned char	pixel_size, attributes;
+} TargaHeader;
+
+int fgetLittleShort (FILE *f)
+{
+	byte	b1, b2;
+
+	b1 = fgetc(f);
+	b2 = fgetc(f);
+
+	return (short)(b1 + b2*256);
+}
+
+int fgetLittleLong (FILE *f)
+{
+	byte	b1, b2, b3, b4;
+
+	b1 = fgetc(f);
+	b2 = fgetc(f);
+	b3 = fgetc(f);
+	b4 = fgetc(f);
+
+	return b1 + (b2<<8) + (b3<<16) + (b4<<24);
+}
+
+/*
+=============
+LoadTGA
+=============
+*/
+byte *LoadTGA (FILE *fin, int matchwidth, int matchheight)
+{
+	int		w, h, x, y, realrow, truerow, baserow, i, temp1, temp2, pixel_size, map_idx;
+	int		RLE_count, RLE_flag, size, interleave, origin;
+	qboolean	mapped, rlencoded;
+	byte		*data, *dst, r, g, b, a, j, k, l, *ColorMap;
+	TargaHeader	header;
+
+	header.id_length = fgetc (fin);
+	header.colormap_type = fgetc (fin);
+	header.image_type = fgetc (fin);
+	header.colormap_index = fgetLittleShort (fin);
+	header.colormap_length = fgetLittleShort (fin);
+	header.colormap_size = fgetc (fin);
+	header.x_origin = fgetLittleShort (fin);
+	header.y_origin = fgetLittleShort (fin);
+	header.width = fgetLittleShort (fin);
+	header.height = fgetLittleShort (fin);
+	header.pixel_size = fgetc (fin);
+	header.attributes = fgetc (fin);
+
+	if (header.width > IMAGE_MAX_DIMENSIONS || header.height > IMAGE_MAX_DIMENSIONS)
+	{
+		Con_DPrintf ("TGA image %s exceeds maximum supported dimensions\n", fin);
+		fclose (fin);
+		return NULL;
 	}
 
-	int rgb[3];
-	rgb[0] = r;
-	rgb[1] = g; 
-	rgb[2] = b;
+	// naievil -- must disable this
+	// if ((matchwidth && header.width != matchwidth) || (matchheight && header.height != matchheight))
+	// {
+	// 	fclose (fin);
+	// 	return NULL;
+	// }
 
-	return (byte)convert_24_to_8(host_basepal, rgb);
+	if (header.id_length != 0)
+		fseek (fin, header.id_length, SEEK_CUR);
+
+	/* validate TGA type */
+	switch (header.image_type)
+	{
+	case TGA_Map:
+	case TGA_RGB:
+	case TGA_Mono:
+	case TGA_RLEMap:
+	case TGA_RLERGB:
+	case TGA_RLEMono:
+		break;
+
+	default:
+		Con_Printf ("Unsupported TGA image %s: Only type 1 (map), 2 (RGB), 3 (mono), 9 (RLEmap), 10 (RLERGB), 11 (RLEmono) TGA images supported\n");
+		fclose (fin);
+		return NULL;
+	}
+
+	/* validate color depth */
+	switch (header.pixel_size)
+	{
+	case 8:
+	case 15:
+	case 16:
+	case 24:
+	case 32:
+		break;
+
+	default:
+		Con_Printf ("Unsupported TGA image %s: Only 8, 15, 16, 24 or 32 bit images (with colormaps) supported\n");
+		fclose (fin);
+		return NULL;
+	}
+
+	r = g = b = a = l = 0;
+
+	/* if required, read the color map information. */
+	ColorMap = NULL;
+	mapped = (header.image_type == TGA_Map || header.image_type == TGA_RLEMap) && header.colormap_type == 1;
+	if (mapped)
+	{
+		/* validate colormap size */
+		switch (header.colormap_size)
+		{
+		case 8:
+		case 15:
+		case 16:
+		case 32:
+		case 24:
+			break;
+
+		default:
+			Con_Printf ("Unsupported TGA image %s: Only 8, 15, 16, 24 or 32 bit colormaps supported\n");
+			fclose (fin);
+			return NULL;
+		}
+
+		temp1 = header.colormap_index;
+		temp2 = header.colormap_length;
+		if ((temp1 + temp2 + 1) >= TGA_MAXCOLORS)
+		{
+			fclose (fin);
+			Con_Printf("TGA MAX COLORS FAIL!\n");
+			return NULL;
+		}
+		ColorMap = (byte*)(malloc (TGA_MAXCOLORS * 4));
+		map_idx = 0;
+		for (i = temp1 ; i < temp1 + temp2 ; ++i, map_idx += 4)
+		{
+			/* read appropriate number of bytes, break into rgb & put in map. */
+			switch (header.colormap_size)
+			{
+			case 8:	/* grey scale, read and triplicate. */
+				r = g = b = getc (fin);
+				a = 255;
+				break;
+
+			case 15:	/* 5 bits each of red green and blue. */
+						/* watch byte order. */
+				j = getc (fin);
+				k = getc (fin);
+				l = ((unsigned int)k << 8) + j;
+				r = (byte)(((k & 0x7C) >> 2) << 3);
+				g = (byte)((((k & 0x03) << 3) + ((j & 0xE0) >> 5)) << 3);
+				b = (byte)((j & 0x1F) << 3);
+				a = 255;
+				break;
+
+			case 16:	/* 5 bits each of red green and blue, 1 alpha bit. */
+						/* watch byte order. */
+				j = getc (fin);
+				k = getc (fin);
+				l = ((unsigned int)k << 8) + j;
+				r = (byte)(((k & 0x7C) >> 2) << 3);
+				g = (byte)((((k & 0x03) << 3) + ((j & 0xE0) >> 5)) << 3);
+				b = (byte)((j & 0x1F) << 3);
+				a = (k & 0x80) ? 255 : 0;
+				break;
+
+			case 24:	/* 8 bits each of blue, green and red. */
+				b = getc (fin);
+				g = getc (fin);
+				r = getc (fin);
+				a = 255;
+				l = 0;
+				break;
+
+			case 32:	/* 8 bits each of blue, green, red and alpha. */
+				b = getc (fin);
+				g = getc (fin);
+				r = getc (fin);
+				a = getc (fin);
+				l = 0;
+				break;
+			}
+			ColorMap[map_idx+0] = r;
+			ColorMap[map_idx+1] = g;
+			ColorMap[map_idx+2] = b;
+			ColorMap[map_idx+3] = a;
+		}
+	}
+
+	/* check run-length encoding. */
+	rlencoded = (header.image_type == TGA_RLEMap || header.image_type == TGA_RLERGB || header.image_type == TGA_RLEMono);
+	RLE_count = RLE_flag = 0;
+
+	image_width = w = header.width;
+	image_height = h = header.height;
+
+	size = w * h * 4;
+	data = (byte*)(malloc (size));
+
+	/* read the Targa file body and convert to portable format. */
+	pixel_size = header.pixel_size;
+	origin = (header.attributes & 0x20) >> 5;
+	interleave = (header.attributes & 0xC0) >> 6;
+	truerow = baserow = 0;
+	for (y=0 ; y<h ; y++)
+	{
+		realrow = truerow;
+		if (origin == TGA_O_UPPER)
+			realrow = h - realrow - 1;
+
+		dst = data + realrow * w * 4;
+
+		for (x=0 ; x<w ; x++)
+		{
+			/* check if run length encoded. */
+			if (rlencoded)
+			{
+				if (!RLE_count)
+				{
+					/* have to restart run. */
+					i = getc (fin);
+					RLE_flag = (i & 0x80);
+					if (!RLE_flag)	// stream of unencoded pixels
+						RLE_count = i + 1;
+					else		// single pixel replicated
+						RLE_count = i - 127;
+					/* decrement count & get pixel. */
+					--RLE_count;
+				}
+				else
+				{
+					/* have already read count & (at least) first pixel. */
+					--RLE_count;
+					if (RLE_flag)
+						/* replicated pixels. */
+						goto PixEncode;
+				}
+			}
+
+			/* read appropriate number of bytes, break into RGB. */
+			switch (pixel_size)
+			{
+			case 8:	/* grey scale, read and triplicate. */
+				r = g = b = l = getc (fin);
+				a = 255;
+				break;
+
+			case 15:	/* 5 bits each of red green and blue. */
+						/* watch byte order. */
+				j = getc (fin);
+				k = getc (fin);
+				l = ((unsigned int)k << 8) + j;
+				r = (byte)(((k & 0x7C) >> 2) << 3);
+				g = (byte)((((k & 0x03) << 3) + ((j & 0xE0) >> 5)) << 3);
+				b = (byte)((j & 0x1F) << 3);
+				a = 255;
+				break;
+
+			case 16:	/* 5 bits each of red green and blue, 1 alpha bit. */
+						/* watch byte order. */
+				j = getc (fin);
+				k = getc (fin);
+				l = ((unsigned int)k << 8) + j;
+				r = (byte)(((k & 0x7C) >> 2) << 3);
+				g = (byte)((((k & 0x03) << 3) + ((j & 0xE0) >> 5)) << 3);
+				b = (byte)((j & 0x1F) << 3);
+				a = (k & 0x80) ? 255 : 0;
+				break;
+
+			case 24:	/* 8 bits each of blue, green and red. */
+				b = getc (fin);
+				g = getc (fin);
+				r = getc (fin);
+				a = 255;
+				l = 0;
+				break;
+
+			case 32:	/* 8 bits each of blue, green, red and alpha. */
+				b = getc (fin);
+				g = getc (fin);
+				r = getc (fin);
+				a = getc (fin);
+				l = 0;
+				break;
+
+			default:
+				Con_DPrintf ("Malformed TGA image: Illegal pixel_size '%d'\n", pixel_size);
+				fclose (fin);
+				free (data);
+				if (mapped)
+					free (ColorMap);
+				return NULL;
+			}
+
+PixEncode:
+			if (mapped)
+			{
+				map_idx = l * 4;
+				*dst++ = ColorMap[map_idx+0];
+				*dst++ = ColorMap[map_idx+1];
+				*dst++ = ColorMap[map_idx+2];
+				*dst++ = ColorMap[map_idx+3];
+			}
+			else
+			{
+				*dst++ = r;
+				*dst++ = g;
+				*dst++ = b;
+				*dst++ = a;
+			}
+		}
+
+		if (interleave == TGA_IL_Four)
+			truerow += 4;
+		else if (interleave == TGA_IL_Two)
+			truerow += 2;
+		else
+			truerow++;
+		if (truerow >= h)
+			truerow = ++baserow;
+	}
+
+	if (mapped)
+		free (ColorMap);
+
+	fclose (fin);
+
+	return data;
+}
+
+
+byte* loadimagepixels (char* filename, qboolean complain, int matchwidth, int matchheight)
+{
+	FILE	*f;
+	char	basename[128], name[132];
+	byte	*c;
+
+	if (complain == qfalse)
+		COM_StripExtension(filename, basename); // strip the extension to allow TGA
+	else
+		strcpy(basename, filename);
+
+	c = (byte*)basename;
+	while (*c)
+	{
+		if (*c == '*')
+			*c = '+';
+		c++;
+	}
+
+	//Try TGA
+	sprintf (name, "%s.tga", basename);
+	COM_FOpenFile (name, &f);
+	if (f) {
+		return LoadTGA (f, matchwidth, matchheight);
+	}
+	//Try PCX
+	sprintf (name, "%s.pcx", basename);
+	COM_FOpenFile (name, &f);
+	if (f) {
+		return LoadPCX (f, matchwidth, matchheight);
+	}
+	
+	//if (complain)
+	Con_Printf ("Couldn't load %s.tga or %s.pcx \n", filename);
+	
+	return NULL;
+}
+
+int loadtextureimage (char* filename, int matchwidth, int matchheight, qboolean complain, qboolean mipmap, int *actual_image_width, int *actual_image_height)
+{
+	byte *data = loadimagepixels (filename, complain, matchwidth, matchheight);
+
+	if (temp_pixel_storage_pixels == NULL) { 
+		Con_Printf("Cannot load image %s\n", filename);
+		return 0;
+	}	
+
+	memcpy(temp_pixel_storage_pixels, data, image_width * image_height * 4);
+
+	actual_image_height = &image_height;
+	actual_image_width = &image_width;
+	return 1;
 }

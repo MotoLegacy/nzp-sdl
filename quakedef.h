@@ -19,7 +19,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // quakedef.h -- primary header for client
 
-//#define	GLTEST			// experimental stuff
+#define qtrue 1
+#define qfalse 0
 
 #define	QUAKE_GAME			// as opposed to utilities
 
@@ -53,15 +54,17 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 //define	PARANOID			// speed sapping error checking
 
-#define	GAMENAME	"id1"
+#define	GAMENAME	"nzp"
 
 #include <math.h>
+#include <assert.h>
 #include <string.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <setjmp.h>
+#include <stdbool.h>
 
 #if id386
 #define UNALIGNED_OK	1	// set to 0 if unaligned accesses are not supported
@@ -100,10 +103,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //
 // per-level limits
 //
-#define	MAX_EDICTS		32000			// FIXME: ouch! ouch! ouch!
+#define	MAX_EDICTS		600			// FIXME: ouch! ouch! ouch!
 #define	MAX_LIGHTSTYLES	64
-#define	MAX_MODELS		2048			// these are sent over the net as bytes
-#define	MAX_SOUNDS		2048			// so they cannot be blindly increased
+#define	MAX_MODELS		256			// these are sent over the net as bytes
+#define	MAX_SOUNDS		256			// so they cannot be blindly increased
 
 #define	SAVEGAME_COMMENT_LENGTH	39
 
@@ -114,20 +117,86 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //
 #define	MAX_CL_STATS		32
 #define	STAT_HEALTH			0
-#define	STAT_FRAGS			1
+#define	STAT_points			1
 #define	STAT_WEAPON			2
 #define	STAT_AMMO			3
-#define	STAT_ARMOR			4
+#define	STAT_SECGRENADES	4
 #define	STAT_WEAPONFRAME	5
-#define	STAT_SHELLS			6
-#define	STAT_NAILS			7
-#define	STAT_ROCKETS		8
-#define	STAT_CELLS			9
+#define	STAT_CURRENTMAG		6
+#define	STAT_ZOOM			7
+#define	STAT_WEAPONSKIN		8
+#define	STAT_GRENADES		9
 #define	STAT_ACTIVEWEAPON	10
-#define	STAT_TOTALSECRETS	11
-#define	STAT_TOTALMONSTERS	12
-#define	STAT_SECRETS		13		// bumped on client side by svc_foundsecret
-#define	STAT_MONSTERS		14		// bumped by svc_killedmonster
+#define	STAT_ROUNDS			11
+#define	STAT_ROUNDCHANGE	12
+#define	STAT_X2				13
+#define	STAT_INSTA			14
+#define	STAT_PRIGRENADES	15
+#define	STAT_WEAPON2		17
+#define	STAT_WEAPON2SKIN	18
+#define	STAT_WEAPON2FRAME	19
+#define STAT_CURRENTMAG2 	20
+
+// stock defines
+
+#define W_COLT 		1
+#define W_KAR 		2
+#define W_THOMPSON 	3
+#define W_357		4
+#define W_BAR		5
+#define W_BK		6
+#define W_BROWNING	7
+#define W_DB		8
+#define W_FG		9
+#define W_GEWEHR	10
+#define W_KAR_SCOPE	11
+#define W_M1		12
+#define W_M1A1		13
+#define W_M2		14
+#define W_MP40		15
+#define W_MG		16
+#define W_PANZER	17
+#define W_PPSH		18
+#define W_PTRS		19
+#define W_RAY		20
+#define W_SAWNOFF	21
+#define W_STG		22
+#define W_TRENCH	23
+#define W_TYPE		24
+
+#define W_BIATCH  28
+#define W_KILLU   29 //357
+#define W_COMPRESSOR 30 // Gewehr
+#define W_M1000  31 //garand
+#define W_KOLLIDER  32 // mp5
+#define W_PORTER  33 // Ray
+#define W_WIDDER  34 // M1A1
+#define W_FIW  35 //upgraded flamethrower
+#define W_ARMAGEDDON  36 //Kar
+//#define W_WUNDER  37
+#define W_GIBS  38 // thompson
+#define W_SAMURAI  39 //Type
+#define W_AFTERBURNER  40 //mp40
+#define W_SPATZ  41 // stg
+#define W_SNUFF  42 // sawn off
+#define W_BORE  43 // double barrel
+#define W_IMPELLER  44 //fg
+#define W_BARRACUDA  45 //mg42
+#define W_ACCELERATOR  46 //M1919 browning
+#define W_GUT  47 //trench
+#define W_REAPER  48 //ppsh
+#define W_HEADCRACKER  49 //scoped kar
+#define W_LONGINUS  50 //panzer
+#define W_PENETRATOR  51 //ptrs
+#define W_WIDOW  52 //bar
+//#define W_KRAUS  53 //ballistic
+#define W_MP5   54
+#define W_M14   55
+
+#define W_TESLA  56
+#define W_DG3 	 57 //tesla
+
+#define W_NOWEP   420
 
 // stock defines
 
@@ -250,6 +319,8 @@ typedef struct
 #include "crc.h"
 #include "cdaudio.h"
 
+#include "cl_hud.h"
+
 
 //=============================================================================
 
@@ -322,6 +393,33 @@ extern	cvar_t	chase_active;
 void Chase_Init (void);
 void Chase_Reset (void);
 void Chase_Update (void);
+
+//ZOMBIE AI STUFF
+#define MAX_WAYPOINTS 256 //max waypoints
+typedef struct
+{
+	int pathlist [MAX_WAYPOINTS];
+	int zombienum;
+} zombie_ai;
+
+typedef struct
+{
+	vec3_t origin;
+	int id;
+	float g_score, f_score;
+	int open; // Determine if the waypoint is "open" a.k.a avaible
+	int target_id [8]; // Targets array number
+	char special[64]; //special tag is required for the closed waypoints
+	int target [8]; //Each waypoint can have up to 8 targets
+	float dist [8]; // Distance to the next waypoints
+	int came_from; // Used for pathfinding store where we got here to this
+	qboolean used; //if the waypoint is in use
+} waypoint_ai;
+
+extern waypoint_ai waypoints[MAX_WAYPOINTS];
+
+
+extern func_t	EndFrame;
 
 // naievil -- texture conversion start 
 #define MAX_SINGLE_PLANE_PIXEL_SIZE 		512*512*1 		// naievil -- 512 x 512 single plane (paletted) texture

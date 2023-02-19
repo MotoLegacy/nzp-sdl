@@ -251,6 +251,41 @@ if (sides == 0)
 	return sides;
 }
 
+void vectoangles (vec3_t vec, vec3_t ang)
+{
+	float	forward, yaw, pitch;
+
+	if (!vec[1] && !vec[0])
+	{
+		yaw = 0;
+		pitch = (vec[2] > 0) ? 90 : 270;
+	}
+	else
+	{
+		#ifdef PSP_VFPU
+		yaw = vec[0] ? (vfpu_atan2f(vec[1], vec[0]) * 180 / M_PI) : (vec[1] > 0) ? 90 : 270;
+		#else
+		yaw = vec[0] ? (atan2(vec[1], vec[0]) * 180 / M_PI) : (vec[1] > 0) ? 90 : 270;
+		#endif
+		if (yaw < 0)
+			yaw += 360;
+
+		#ifdef PSP_VFPU
+		forward = vfpu_sqrtf (vec[0] * vec[0] + vec[1] * vec[1]);
+		pitch = vfpu_atan2f (vec[2], forward) * 180 / M_PI;
+		#else
+		forward = sqrt (vec[0] * vec[0] + vec[1] * vec[1]);
+		pitch = atan2 (vec[2], forward) * 180 / M_PI;
+		#endif
+		if (pitch < 0)
+			pitch += 360;
+	}
+
+	ang[0] = pitch;
+	ang[1] = yaw;
+	ang[2] = 0;
+}
+
 //johnfitz -- the opposite of AngleVectors.  this takes forward and generates pitch yaw roll
 //TODO: take right and up vectors to properly set yaw and roll
 void VectorAngles (const vec3_t forward, vec3_t angles)
@@ -362,6 +397,14 @@ vec_t Length(vec3_t v)
 	length = sqrt (length);		// FIXME
 
 	return length;
+}
+
+// naievil -- is this the same as what is below?
+float VecLength2(vec3_t v1, vec3_t v2)
+{
+	vec3_t k;
+	VectorSubtract(v1, v2, k);
+	return sqrt(k[0]*k[0] + k[1]*k[1] + k[2]*k[2]);
 }
 
 float VectorNormalize (vec3_t v)

@@ -1007,7 +1007,7 @@ void R_ClipEdge_fxp (mvertex_fxp_t pv0[3], mvertex_fxp_t pv1[3], clipplane_fxp_t
 R_ClipEdge
 ================
 */
-void R_ClipEdge (mvertex_t *pv0, mvertex_t *pv1, clipplane_t *clip)
+static inline void R_ClipEdge (mvertex_t *pv0, mvertex_t *pv1, clipplane_t *clip)
 {
 	float		d0, d1, f;
 	mvertex_t	clipvert;
@@ -1354,7 +1354,7 @@ void R_RenderFace (msurface_t *fa, int clipflags)
 // FIXME: cache this?
 	TransformVector (pplane->normal, p_normal);
 // FIXME: cache this?
-	distinv = 1.0 / (pplane->dist - DotProduct (modelorg, pplane->normal));
+	distinv = (float) 1.0 / (pplane->dist - DotProduct (modelorg, pplane->normal));
 
 #ifndef USE_PQ_OPT3
 	surface_p->d_zistepu = p_normal[0] * xscaleinv * distinv;

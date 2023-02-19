@@ -21,6 +21,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
+extern qboolean domaxammo;
+
 char *svc_strings[] =
 {
 	"svc_bad",
@@ -35,36 +37,45 @@ char *svc_strings[] =
 	"svc_stufftext",		// [string] stuffed into client's console buffer
 						// the string should be \n terminated
 	"svc_setangle",		// [vec3] set the view angle to this absolute value
-	
+
 	"svc_serverinfo",		// [long] version
 						// [string] signon string
 						// [string]..[0]model cache [string]...[0]sounds cache
 						// [string]..[0]item cache
 	"svc_lightstyle",		// [byte] [string]
 	"svc_updatename",		// [byte] [string]
-	"svc_updatefrags",	// [byte] [short]
+	"svc_updatepoints",	// [byte] [short]
 	"svc_clientdata",		// <shortbits + data>
 	"svc_stopsound",		// <see code>
-	"svc_updatecolors",	// [byte] [byte]
+	"",	// [byte] [byte]
 	"svc_particle",		// [vec3] <variable>
 	"svc_damage",			// [byte] impact [byte] blood [vec3] from
-	
+
 	"svc_spawnstatic",
 	"OBSOLETE svc_spawnbinary",
 	"svc_spawnbaseline",
-	
+
 	"svc_temp_entity",		// <variable>
 	"svc_setpause",
 	"svc_signonnum",
 	"svc_centerprint",
-	"svc_killedmonster",
-	"svc_foundsecret",
 	"svc_spawnstaticsound",
 	"svc_intermission",
 	"svc_finale",			// [string] music [string] text
 	"svc_cdtrack",			// [byte] track [byte] looptrack
 	"svc_sellscreen",
-	"svc_cutscene"
+	"svc_cutscene",
+	"svc_weaponfire",
+	"svc_hitmark",
+	"svc_skybox",		   // [string] skyname
+	"svc_useprint",
+	"svc_updatekills",
+	"svc_limbupdate",
+    "svc_fog",    // 41		// [byte] start [byte] end [byte] red [byte] green [byte] blue [float] time
+    "svc_bspdecal", //42     // [string] name [byte] decal_size [coords] pos
+    "svc_achievement", //43
+	"svc_songegg", //44 			[string] track name
+	"svc_maxammo" //45
 };
 
 //=============================================================================
@@ -408,7 +419,6 @@ if (bits&(1<<i))
 	{
 		if (i > cl.maxclients)
 			Sys_Error ("i >= cl.maxclients");
-		ent->colormap = cl.scores[i-1].translations;
 	}
 
 	if (bits & U_SKIN)
@@ -493,9 +503,11 @@ CL_ParseClientdata
 Server information pertaining to this client only
 ==================
 */
+extern int perk_order[9];
+extern int current_perk_order;
 void CL_ParseClientdata (int bits)
 {
-	int		i, j;
+	int		i, j, s;
 	
 	if (bits & SU_VIEWHEIGHT)
 		cl.viewheight = MSG_ReadChar ();
@@ -506,6 +518,192 @@ void CL_ParseClientdata (int bits)
 		cl.idealpitch = MSG_ReadChar ();
 	else
 		cl.idealpitch = 0;
+	/*
+	if (bits & SU_PERKS)
+		i = MSG_ReadLong ();
+	else
+		i = 0;
+	if (cl.perks != i)
+	{
+		if (i & 1 && !(cl.perks & 1))
+		{
+			perk_order[current_perk_order] = 1;
+			current_perk_order++;
+		}
+		if (i & 2 && !(cl.perks & 2))
+		{
+			perk_order[current_perk_order] = 2;
+			current_perk_order++;
+		}
+		if (i & 4 && !(cl.perks & 4))
+		{
+			perk_order[current_perk_order] = 4;
+			current_perk_order++;
+		}
+		if (i & 8 && !(cl.perks & 8))
+		{
+			perk_order[current_perk_order] = 8;
+			current_perk_order++;
+		}
+		if (i & 16 && !(cl.perks & 16))
+		{
+			perk_order[current_perk_order] = 16;
+			current_perk_order++;
+		}
+		if (i & 32 && !(cl.perks & 32))
+		{
+			perk_order[current_perk_order] = 32;
+			current_perk_order++;
+		}
+		if (i & 64 && !(cl.perks & 64))
+		{
+			perk_order[current_perk_order] = 64;
+			current_perk_order++;
+		}
+		if (i & 128 && !(cl.perks & 128))
+		{
+			perk_order[current_perk_order] = 128;
+			current_perk_order++;
+		}
+		if (cl.perks & 1 && !(i & 1))
+		{
+			for (s = 0; s < 9; s++)
+			{
+				if (perk_order[s] == 1)
+				{
+					perk_order[s] = 0;
+					while (perk_order[s+1])
+					{
+						perk_order[s] = perk_order[s+1];
+						perk_order[s+1] = 0;
+					}
+					break;
+				}
+			}
+			current_perk_order--;
+		}
+		if (cl.perks & 2 && !(i & 2))
+		{
+			for (s = 0; s < 9; s++)
+			{
+				if (perk_order[s] == 2)
+				{
+					perk_order[s] = 0;
+					while (perk_order[s+1])
+					{
+						perk_order[s] = perk_order[s+1];
+						perk_order[s+1] = 0;
+					}
+					break;
+				}
+			}
+			current_perk_order--;
+		}
+		if (cl.perks & 4 && !(i & 4))
+		{
+			for (s = 0; s < 9; s++)
+			{
+				if (perk_order[s] == 4)
+				{
+					perk_order[s] = 0;
+					while (perk_order[s+1])
+					{
+						perk_order[s] = perk_order[s+1];
+						perk_order[s+1] = 0;
+					}
+					break;
+				}
+			}
+			current_perk_order--;
+		}
+		if (cl.perks & 8 && !(i & 8))
+		{
+			for (s = 0; s < 9; s++)
+			{
+				if (perk_order[s] == 8)
+				{
+					perk_order[s] = 0;
+					while (perk_order[s+1])
+					{
+						perk_order[s] = perk_order[s+1];
+						perk_order[s+1] = 0;
+					}
+					break;
+				}
+			}
+			current_perk_order--;
+		}
+		if (cl.perks & 16 && !(i & 16))
+		{
+			for (s = 0; s < 9; s++)
+			{
+				if (perk_order[s] == 16)
+				{
+					perk_order[s] = 0;
+					while (perk_order[s+1])
+					{
+						perk_order[s] = perk_order[s+1];
+						perk_order[s+1] = 0;
+					}
+					break;
+				}
+			}
+			current_perk_order--;
+		}
+		if (cl.perks & 32 && !(i & 32))
+		{
+			for (s = 0; s < 9; s++)
+			{
+				if (perk_order[s] == 32)
+				{
+					perk_order[s] = 0;
+					while (perk_order[s+1])
+					{
+						perk_order[s] = perk_order[s+1];
+						perk_order[s+1] = 0;
+					}
+					break;
+				}
+			}
+			current_perk_order--;
+		}
+		if (cl.perks & 64 && !(i & 64))
+		{
+			for (s = 0; s < 9; s++)
+			{
+				if (perk_order[s] == 64)
+				{
+					perk_order[s] = 0;
+					while (perk_order[s+1])
+					{
+						perk_order[s] = perk_order[s+1];
+						perk_order[s+1] = 0;
+					}
+					break;
+				}
+			}
+			current_perk_order--;
+		}
+		if (cl.perks & 128 && !(i & 128))
+		{
+			for (s = 0; s < 9; s++)
+			{
+				if (perk_order[s] == 128)
+				{
+					perk_order[s] = 0;
+					while (perk_order[s+1])
+					{
+						perk_order[s] = perk_order[s+1];
+						perk_order[s+1] = 0;
+					}
+					break;
+				}
+			}
+			current_perk_order--;
+		}
+		cl.perks = i;
+	}
+*/
 	
 	VectorCopy (cl.mvelocity[0], cl.mvelocity[1]);
 	for (i=0 ; i<3 ; i++)
@@ -519,18 +717,6 @@ void CL_ParseClientdata (int bits)
 		else
 			cl.mvelocity[0][i] = 0;
 	}
-
-// [always sent]	if (bits & SU_ITEMS)
-		i = MSG_ReadLong ();
-
-	if (cl.items != i)
-	{	// set flash times
-		Sbar_Changed ();
-		for (j=0 ; j<32 ; j++)
-			if ( (i & (1<<j)) && !(cl.items & (1<<j)))
-				cl.item_gettime[j] = cl.time;
-		cl.items = i;
-	}
 		
 	cl.onground = (bits & SU_ONGROUND) != 0;
 	cl.inwater = (bits & SU_INWATER) != 0;
@@ -540,16 +726,6 @@ void CL_ParseClientdata (int bits)
 	else
 		cl.stats[STAT_WEAPONFRAME] = 0;
 
-	if (bits & SU_ARMOR)
-		i = MSG_ReadByte ();
-	else
-		i = 0;
-	if (cl.stats[STAT_ARMOR] != i)
-	{
-		cl.stats[STAT_ARMOR] = i;
-		Sbar_Changed ();
-	}
-
 	if (bits & SU_WEAPON)
 		i = MSG_ReadByte ();
 	else
@@ -557,31 +733,18 @@ void CL_ParseClientdata (int bits)
 	if (cl.stats[STAT_WEAPON] != i)
 	{
 		cl.stats[STAT_WEAPON] = i;
-		Sbar_Changed ();
 	}
 	
 	i = MSG_ReadShort ();
 	if (cl.stats[STAT_HEALTH] != i)
 	{
 		cl.stats[STAT_HEALTH] = i;
-		Sbar_Changed ();
 	}
 
 	i = MSG_ReadByte ();
 	if (cl.stats[STAT_AMMO] != i)
 	{
 		cl.stats[STAT_AMMO] = i;
-		Sbar_Changed ();
-	}
-
-	for (i=0 ; i<4 ; i++)
-	{
-		j = MSG_ReadByte ();
-		if (cl.stats[STAT_SHELLS+i] != j)
-		{
-			cl.stats[STAT_SHELLS+i] = j;
-			Sbar_Changed ();
-		}
 	}
 
 	i = MSG_ReadByte ();
@@ -591,7 +754,6 @@ void CL_ParseClientdata (int bits)
 		if (cl.stats[STAT_ACTIVEWEAPON] != i)
 		{
 			cl.stats[STAT_ACTIVEWEAPON] = i;
-			Sbar_Changed ();
 		}
 	}
 	else
@@ -599,45 +761,10 @@ void CL_ParseClientdata (int bits)
 		if (cl.stats[STAT_ACTIVEWEAPON] != (1<<i))
 		{
 			cl.stats[STAT_ACTIVEWEAPON] = (1<<i);
-			Sbar_Changed ();
 		}
 	}
 }
 
-/*
-=====================
-CL_NewTranslation
-=====================
-*/
-void CL_NewTranslation (int slot)
-{
-	int		i, j;
-	int		top, bottom;
-	byte	*dest, *source;
-	
-	if (slot > cl.maxclients)
-		Sys_Error ("CL_NewTranslation: slot > cl.maxclients");
-	dest = cl.scores[slot].translations;
-	source = vid.colormap;
-	memcpy (dest, vid.colormap, sizeof(cl.scores[slot].translations));
-	top = cl.scores[slot].colors & 0xf0;
-	bottom = (cl.scores[slot].colors &15)<<4;
-
-	for (i=0 ; i<VID_GRADES ; i++, dest += 256, source+=256)
-	{
-		if (top < 128)	// the artists made some backwards ranges.  sigh.
-			memcpy (dest + TOP_RANGE, source + top, 16);
-		else
-			for (j=0 ; j<16 ; j++)
-				dest[TOP_RANGE+j] = source[top+15-j];
-				
-		if (bottom < 128)
-			memcpy (dest + BOTTOM_RANGE, source + bottom, 16);
-		else
-			for (j=0 ; j<16 ; j++)
-				dest[BOTTOM_RANGE+j] = source[bottom+15-j];		
-	}
-}
 
 /*
 =====================
@@ -688,6 +815,56 @@ void CL_ParseStaticSound (void)
 	S_StaticSound (cl.sound_precache[sound_num], org, vol, atten);
 }
 
+extern double Hitmark_Time;
+extern int crosshair_spread;
+extern double crosshair_spread_time;
+double return_time;
+/*
+===================
+CL_ParseWeaponFire
+===================
+*/
+void CL_ParseWeaponFire (void)
+{
+	vec3_t		kick;
+	return_time = (double)6/MSG_ReadLong ();
+	crosshair_spread_time = return_time + sv.time;
+
+	kick[0] = MSG_ReadCoord()/5;
+	kick[1] = MSG_ReadCoord()/5;
+	kick[2] = MSG_ReadCoord()/5;
+
+	if (!(cl.perks & 64)) {
+		cl.gun_kick[0] += kick[0];
+		cl.gun_kick[1] += kick[1];
+		cl.gun_kick[2] += kick[2];
+	}
+}
+
+/*
+===================
+CL_ParseLimbUpdate
+===================
+*/
+void CL_ParseLimbUpdate (void)
+{
+    int limb = MSG_ReadByte();
+    int zombieent = MSG_ReadShort();
+    int limbent = MSG_ReadShort();
+    switch (limb)
+    {
+        case 0://head
+            cl_entities[zombieent].z_head = limbent;
+            break;
+        case 1://larm
+            cl_entities[zombieent].z_larm = limbent;
+            break;
+        case 2://rarm
+            cl_entities[zombieent].z_rarm = limbent;
+            break;
+
+    }
+}
 
 #define SHOWNET(x) if(cl_shownet.value==2)Con_Printf ("%3i:%s\n", msg_readcount-1, x);
 
@@ -742,7 +919,7 @@ void CL_ParseServerMessage (void)
 		switch (cmd)
 		{
 		default:
-			Host_Error ("CL_ParseServerMessage: Illegible server message\n");
+			Host_Error ("CL_ParseServerMessage: Illegible server message: %d\n", cmd);
 			break;
 			
 		case svc_nop:
@@ -774,6 +951,14 @@ void CL_ParseServerMessage (void)
 			
 		case svc_centerprint:
 			SCR_CenterPrint (MSG_ReadString ());
+			break;
+
+		case svc_useprint:
+			SCR_UsePrint (MSG_ReadByte (),MSG_ReadShort (),MSG_ReadByte ());
+			break;
+
+		case svc_maxammo:
+			domaxammo = true;
 			break;
 			
 		case svc_stufftext:
@@ -816,28 +1001,17 @@ void CL_ParseServerMessage (void)
 			break;
 		
 		case svc_updatename:
-			Sbar_Changed ();
 			i = MSG_ReadByte ();
 			if (i >= cl.maxclients)
 				Host_Error ("CL_ParseServerMessage: svc_updatename > MAX_SCOREBOARD");
 			strcpy (cl.scores[i].name, MSG_ReadString ());
-			break;
-			
-		case svc_updatefrags:
-			Sbar_Changed ();
-			i = MSG_ReadByte ();
-			if (i >= cl.maxclients)
-				Host_Error ("CL_ParseServerMessage: svc_updatefrags > MAX_SCOREBOARD");
-			cl.scores[i].frags = MSG_ReadShort ();
-			break;			
+			break;		
 
 		case svc_updatecolors:
-			Sbar_Changed ();
 			i = MSG_ReadByte ();
 			if (i >= cl.maxclients)
 				Host_Error ("CL_ParseServerMessage: svc_updatecolors > MAX_SCOREBOARD");
-			cl.scores[i].colors = MSG_ReadByte ();
-			CL_NewTranslation (i);
+			MSG_ReadByte ();
 			break;
 			
 		case svc_particle:
@@ -877,14 +1051,6 @@ void CL_ParseServerMessage (void)
 				Host_Error ("Received signon %i when at %i", i, cls.signon);
 			cls.signon = i;
 			CL_SignonReply ();
-			break;
-
-		case svc_killedmonster:
-			cl.stats[STAT_MONSTERS]++;
-			break;
-
-		case svc_foundsecret:
-			cl.stats[STAT_SECRETS]++;
 			break;
 
 		case svc_updatestat:
@@ -930,6 +1096,40 @@ void CL_ParseServerMessage (void)
 		case svc_sellscreen:
 			Cmd_ExecuteString ("help", src_command);
 			break;
+		
+		case svc_achievement:
+			Con_Printf("ERROR: Achievements not supported yet\n");
+			MSG_ReadByte(); //naievil -- temp
+			//HUD_Parse_Achievement (MSG_ReadByte());
+			break;
+
+		case svc_hitmark:
+			Hitmark_Time = sv.time + 0.2;
+			break;
+
+		case svc_weaponfire:
+			CL_ParseWeaponFire();
+			break;
+
+		case svc_limbupdate:
+			CL_ParseLimbUpdate();
+			break;
+
+		case svc_updatepoints:
+			i = MSG_ReadByte ();
+			if (i >= cl.maxclients)
+				Host_Error ("CL_ParseServerMessage: svc_updatepoints > MAX_SCOREBOARD");
+			cl.scores[i].points = MSG_ReadLong ();
+
+			break;
+ 
+		case svc_updatekills:
+			i = MSG_ReadByte ();
+			if (i >= cl.maxclients)
+				Host_Error ("CL_ParseServerMessage: svc_updatekills > MAX_SCOREBOARD");
+			cl.scores[i].kills = MSG_ReadShort ();
+			break;
 		}
 	}
 }
+

@@ -64,7 +64,7 @@ void InsertLinkAfter (link_t *l, link_t *after);
 // (type *)STRUCT_FROM_LINK(link_t *link, type, member)
 // ent = STRUCT_FROM_LINK(link,entity_t,order)
 // FIXME: remove this mess!
-#define	STRUCT_FROM_LINK(l,t,m) ((t *)((byte *)l - (size_t)&(((t *)0)->m)))
+#define	STRUCT_FROM_LINK(l,t,m) ((t *)((byte *)l - (int)&(((t *)0)->m)))
 
 //============================================================================
 
@@ -88,12 +88,30 @@ void InsertLinkAfter (link_t *l, link_t *after);
 
 extern	qboolean		bigendien;
 
-extern	short	(*BigShort) (short l);
-extern	short	(*LittleShort) (short l);
-extern	int	(*BigLong) (int l);
-extern	int	(*LittleLong) (int l);
-extern	float	(*BigFloat) (float l);
-extern	float	(*LittleFloat) (float l);
+// not safe on unaligned data 
+extern  short   (*BigShort) (short l);
+extern  short   (*LittleShort) (short l);
+extern  int     (*BigLong) (int l);
+
+#define LittleLong(l) l
+#define LittleShort(l) l
+#define LittleFloat(l) l
+
+#define LittleShortUnaligned(x) ReadLittleShort(((unsigned char*)(&(x))))
+#define BigShortUnaligned(x) ReadBigShort(((unsigned char*)&(x)))
+#define LittleLongUnaligned(x) ReadLittleLong(((unsigned char*)&(x)))
+#define BigLongUnaligned(x) ReadBigLong(((unsigned char*)&(x)))
+#define LittleFloatUnaligned(x) ReadLittleFloat(((unsigned char*)&(x)))
+#define BigFloatUnaligned(x) ReadBigFloat(((unsigned char*)&(x))
+
+
+// for unaligned
+short	ReadBigShort (unsigned char *l);
+short	ReadLittleShort (unsigned char *l);
+int	ReadBigLong (unsigned char *l);
+int	ReadLittleLong (unsigned char *l);
+float	ReadBigFloat (unsigned char *l);
+float	ReadLittleFloat (unsigned char *l);
 
 //============================================================================
 

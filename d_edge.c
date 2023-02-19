@@ -22,6 +22,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "d_local.h"
 
+extern cvar_t	r_forcemiplevel;
+
 static int	miplevel;
 
 float		scale_for_mip;
@@ -55,6 +57,10 @@ D_MipLevelForScale
 int D_MipLevelForScale (float scale)
 {
 	int		lmiplevel;
+
+	if (r_forcemiplevel.value != 10) {
+		return r_forcemiplevel.value;
+	}
 
 	if (scale >= d_scalemip[0] )
 		lmiplevel = 0;
@@ -195,7 +201,7 @@ void D_DrawSurfaces (void)
 			d_zistepv = s->d_zistepv;
 			d_ziorigin = s->d_ziorigin;
 
-			D_DrawSolidSurface (s, (uintptr_t)s->data & 0xFF);
+			D_DrawSolidSurface (s, (int)s->data & 0xFF);
 			D_DrawZSpans (s->spans);
 		}
 	}

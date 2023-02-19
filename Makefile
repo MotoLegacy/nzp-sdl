@@ -123,7 +123,7 @@ am_goodlookingquake_OBJECTS = cd_sdl.$(OBJEXT) chase.$(OBJEXT) \
 	r_edge.$(OBJEXT) r_efrag.$(OBJEXT) r_light.$(OBJEXT) \
 	r_main.$(OBJEXT) r_misc.$(OBJEXT) r_part.$(OBJEXT) \
 	r_sky.$(OBJEXT) r_sprite.$(OBJEXT) r_surf.$(OBJEXT) \
-	r_vars.$(OBJEXT) sbar.$(OBJEXT) screen.$(OBJEXT) \
+	r_vars.$(OBJEXT) cl_hud.$(OBJEXT) screen.$(OBJEXT) \
 	snd_dma.$(OBJEXT) snd_mem.$(OBJEXT) snd_mix.$(OBJEXT) \
 	snd_sdl.$(OBJEXT) sv_main.$(OBJEXT) sv_move.$(OBJEXT) \
 	sv_phys.$(OBJEXT) sv_user.$(OBJEXT) sys_sdl.$(OBJEXT) \
@@ -147,19 +147,20 @@ DEFAULT_INCLUDES = -I.
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__maybe_remake_depfiles = depfiles
 am__depfiles_remade = ./$(DEPDIR)/cd_sdl.Po ./$(DEPDIR)/chase.Po \
-	./$(DEPDIR)/cl_demo.Po ./$(DEPDIR)/cl_input.Po \
-	./$(DEPDIR)/cl_main.Po ./$(DEPDIR)/cl_parse.Po \
-	./$(DEPDIR)/cl_tent.Po ./$(DEPDIR)/cmd.Po \
-	./$(DEPDIR)/common.Po ./$(DEPDIR)/console.Po \
-	./$(DEPDIR)/crc.Po ./$(DEPDIR)/cvar.Po ./$(DEPDIR)/d_edge.Po \
-	./$(DEPDIR)/d_fill.Po ./$(DEPDIR)/d_init.Po \
-	./$(DEPDIR)/d_modech.Po ./$(DEPDIR)/d_part.Po \
-	./$(DEPDIR)/d_polyse.Po ./$(DEPDIR)/d_scan.Po \
-	./$(DEPDIR)/d_sky.Po ./$(DEPDIR)/d_sprite.Po \
-	./$(DEPDIR)/d_surf.Po ./$(DEPDIR)/d_vars.Po \
-	./$(DEPDIR)/d_zpoint.Po ./$(DEPDIR)/draw.Po \
-	./$(DEPDIR)/host.Po ./$(DEPDIR)/host_cmd.Po \
-	./$(DEPDIR)/keys.Po ./$(DEPDIR)/mathlib.Po ./$(DEPDIR)/menu.Po \
+	./$(DEPDIR)/cl_demo.Po ./$(DEPDIR)/cl_hud.Po \
+	./$(DEPDIR)/cl_input.Po ./$(DEPDIR)/cl_main.Po \
+	./$(DEPDIR)/cl_parse.Po ./$(DEPDIR)/cl_tent.Po \
+	./$(DEPDIR)/cmd.Po ./$(DEPDIR)/common.Po \
+	./$(DEPDIR)/console.Po ./$(DEPDIR)/crc.Po ./$(DEPDIR)/cvar.Po \
+	./$(DEPDIR)/d_edge.Po ./$(DEPDIR)/d_fill.Po \
+	./$(DEPDIR)/d_init.Po ./$(DEPDIR)/d_modech.Po \
+	./$(DEPDIR)/d_part.Po ./$(DEPDIR)/d_polyse.Po \
+	./$(DEPDIR)/d_scan.Po ./$(DEPDIR)/d_sky.Po \
+	./$(DEPDIR)/d_sprite.Po ./$(DEPDIR)/d_surf.Po \
+	./$(DEPDIR)/d_vars.Po ./$(DEPDIR)/d_zpoint.Po \
+	./$(DEPDIR)/draw.Po ./$(DEPDIR)/host.Po \
+	./$(DEPDIR)/host_cmd.Po ./$(DEPDIR)/keys.Po \
+	./$(DEPDIR)/mathlib.Po ./$(DEPDIR)/menu.Po \
 	./$(DEPDIR)/model.Po ./$(DEPDIR)/net_bsd.Po \
 	./$(DEPDIR)/net_dgrm.Po ./$(DEPDIR)/net_loop.Po \
 	./$(DEPDIR)/net_main.Po ./$(DEPDIR)/net_udp.Po \
@@ -173,14 +174,13 @@ am__depfiles_remade = ./$(DEPDIR)/cd_sdl.Po ./$(DEPDIR)/chase.Po \
 	./$(DEPDIR)/r_misc.Po ./$(DEPDIR)/r_part.Po \
 	./$(DEPDIR)/r_sky.Po ./$(DEPDIR)/r_sprite.Po \
 	./$(DEPDIR)/r_surf.Po ./$(DEPDIR)/r_vars.Po \
-	./$(DEPDIR)/sbar.Po ./$(DEPDIR)/screen.Po \
-	./$(DEPDIR)/snd_dma.Po ./$(DEPDIR)/snd_mem.Po \
-	./$(DEPDIR)/snd_mix.Po ./$(DEPDIR)/snd_sdl.Po \
-	./$(DEPDIR)/sv_main.Po ./$(DEPDIR)/sv_move.Po \
-	./$(DEPDIR)/sv_phys.Po ./$(DEPDIR)/sv_user.Po \
-	./$(DEPDIR)/sys_sdl.Po ./$(DEPDIR)/vid_sdl.Po \
-	./$(DEPDIR)/view.Po ./$(DEPDIR)/wad.Po ./$(DEPDIR)/world.Po \
-	./$(DEPDIR)/zone.Po
+	./$(DEPDIR)/screen.Po ./$(DEPDIR)/snd_dma.Po \
+	./$(DEPDIR)/snd_mem.Po ./$(DEPDIR)/snd_mix.Po \
+	./$(DEPDIR)/snd_sdl.Po ./$(DEPDIR)/sv_main.Po \
+	./$(DEPDIR)/sv_move.Po ./$(DEPDIR)/sv_phys.Po \
+	./$(DEPDIR)/sv_user.Po ./$(DEPDIR)/sys_sdl.Po \
+	./$(DEPDIR)/vid_sdl.Po ./$(DEPDIR)/view.Po ./$(DEPDIR)/wad.Po \
+	./$(DEPDIR)/world.Po ./$(DEPDIR)/zone.Po
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -253,9 +253,9 @@ AWK = gawk
 CC = gcc
 CCAS = gcc
 CCASDEPMODE = depmode=gcc3
-CCASFLAGS = -g -O2
+CCASFLAGS = -g -O0
 CCDEPMODE = depmode=gcc3
-CFLAGS = -g -O2 -ffast-math -funroll-loops -fomit-frame-pointer -fexpensive-optimizations -I/usr/include/SDL -D_GNU_SOURCE=1 -D_REENTRANT 
+CFLAGS = -g -O0 -ffast-math -funroll-loops -fomit-frame-pointer -fexpensive-optimizations -I/usr/include/SDL -D_GNU_SOURCE=1 -D_REENTRANT 
 CPP = gcc -E
 CPPFLAGS =  -DSDL
 CSCOPE = cscope
@@ -450,8 +450,8 @@ goodlookingquake_SOURCES = \
 	r_vars.c		\
 	render.h		\
 	resource.h		\
-	sbar.c			\
-	sbar.h			\
+	cl_hud.c		\
+	cl_hud.h		\
 	screen.c		\
 	screen.h		\
 	server.h		\
@@ -679,6 +679,7 @@ distclean-compile:
 include ./$(DEPDIR)/cd_sdl.Po # am--include-marker
 include ./$(DEPDIR)/chase.Po # am--include-marker
 include ./$(DEPDIR)/cl_demo.Po # am--include-marker
+include ./$(DEPDIR)/cl_hud.Po # am--include-marker
 include ./$(DEPDIR)/cl_input.Po # am--include-marker
 include ./$(DEPDIR)/cl_main.Po # am--include-marker
 include ./$(DEPDIR)/cl_parse.Po # am--include-marker
@@ -732,7 +733,6 @@ include ./$(DEPDIR)/r_sky.Po # am--include-marker
 include ./$(DEPDIR)/r_sprite.Po # am--include-marker
 include ./$(DEPDIR)/r_surf.Po # am--include-marker
 include ./$(DEPDIR)/r_vars.Po # am--include-marker
-include ./$(DEPDIR)/sbar.Po # am--include-marker
 include ./$(DEPDIR)/screen.Po # am--include-marker
 include ./$(DEPDIR)/snd_dma.Po # am--include-marker
 include ./$(DEPDIR)/snd_mem.Po # am--include-marker
@@ -1047,6 +1047,7 @@ distclean: distclean-am
 		-rm -f ./$(DEPDIR)/cd_sdl.Po
 	-rm -f ./$(DEPDIR)/chase.Po
 	-rm -f ./$(DEPDIR)/cl_demo.Po
+	-rm -f ./$(DEPDIR)/cl_hud.Po
 	-rm -f ./$(DEPDIR)/cl_input.Po
 	-rm -f ./$(DEPDIR)/cl_main.Po
 	-rm -f ./$(DEPDIR)/cl_parse.Po
@@ -1100,7 +1101,6 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/r_sprite.Po
 	-rm -f ./$(DEPDIR)/r_surf.Po
 	-rm -f ./$(DEPDIR)/r_vars.Po
-	-rm -f ./$(DEPDIR)/sbar.Po
 	-rm -f ./$(DEPDIR)/screen.Po
 	-rm -f ./$(DEPDIR)/snd_dma.Po
 	-rm -f ./$(DEPDIR)/snd_mem.Po
@@ -1166,6 +1166,7 @@ maintainer-clean: maintainer-clean-am
 		-rm -f ./$(DEPDIR)/cd_sdl.Po
 	-rm -f ./$(DEPDIR)/chase.Po
 	-rm -f ./$(DEPDIR)/cl_demo.Po
+	-rm -f ./$(DEPDIR)/cl_hud.Po
 	-rm -f ./$(DEPDIR)/cl_input.Po
 	-rm -f ./$(DEPDIR)/cl_main.Po
 	-rm -f ./$(DEPDIR)/cl_parse.Po
@@ -1219,7 +1220,6 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/r_sprite.Po
 	-rm -f ./$(DEPDIR)/r_surf.Po
 	-rm -f ./$(DEPDIR)/r_vars.Po
-	-rm -f ./$(DEPDIR)/sbar.Po
 	-rm -f ./$(DEPDIR)/screen.Po
 	-rm -f ./$(DEPDIR)/snd_dma.Po
 	-rm -f ./$(DEPDIR)/snd_mem.Po

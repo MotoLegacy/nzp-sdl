@@ -123,10 +123,8 @@ typedef struct client_s
 #define	MOVETYPE_NOCLIP			8
 #define	MOVETYPE_FLYMISSILE		9		// extra size to monsters
 #define	MOVETYPE_BOUNCE			10
-#ifdef QUAKE2
 #define MOVETYPE_BOUNCEMISSILE	11		// bounce w/o gravity
 #define MOVETYPE_FOLLOW			12		// track movement of aiment
-#endif
 
 // edict->solid values
 #define	SOLID_NOT				0		// no interaction with other objects
@@ -134,6 +132,7 @@ typedef struct client_s
 #define	SOLID_BBOX				2		// touch on edge, block
 #define	SOLID_SLIDEBOX			3		// touch on edge, but not an onground
 #define	SOLID_BSP				4		// bsp clip, touch on edge, block
+#define	SOLID_CORPSE			5		// bsp clip, touch on edge, block
 
 // edict->deadflag values
 #define	DEAD_NO					0

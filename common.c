@@ -35,8 +35,6 @@ cvar_t  cmdline = {"cmdline","", false, true};
 
 qboolean        com_modified;   // set true if using non-id files
 
-int com_nummissionpacks; //johnfitz
-
 qboolean		proghack;
 
 int             static_registered = 1;  // only for startup check, then set
@@ -452,14 +450,15 @@ void Q_strncpyz (char *dest, char *src, size_t size)
 ============================================================================
 */
 
+#ifdef SDL
+#include "SDL_byteorder.h"
+#endif
+
 qboolean        bigendien;
 
 short   (*BigShort) (short l);
-short   (*LittleShort) (short l);
 int     (*BigLong) (int l);
-int     (*LittleLong) (int l);
 float   (*BigFloat) (float l);
-float   (*LittleFloat) (float l);
 
 short   ShortSwap (short l)
 {
@@ -469,11 +468,6 @@ short   ShortSwap (short l)
 	b2 = (l>>8)&255;
 
 	return (b1<<8) + b2;
-}
-
-short   ShortNoSwap (short l)
-{
-	return l;
 }
 
 int    LongSwap (int l)
@@ -486,11 +480,6 @@ int    LongSwap (int l)
 	b4 = (l>>24)&255;
 
 	return ((int)b1<<24) + ((int)b2<<16) + ((int)b3<<8) + b4;
-}
-
-int     LongNoSwap (int l)
-{
-	return l;
 }
 
 float FloatSwap (float f)
@@ -510,11 +499,59 @@ float FloatSwap (float f)
 	return dat2.f;
 }
 
-float FloatNoSwap (float f)
+// safe for unaligned accesses
+short   ReadLittleShort (unsigned char *l)
 {
-	return f;
+    return *(l + 0) | (*(l + 1) << 8);
 }
 
+short   ReadBigShort (unsigned char *l)
+{
+    return *(l + 1) | (*(l + 0) << 8);
+}
+
+int    ReadLittleLong (unsigned char *l)
+{
+    return *(l + 0) | (*(l + 1) << 8) | (*(l + 2) << 16) | (*(l + 3) << 24);
+}
+
+int ReadBigLong (unsigned char *l)
+{
+    return *(l + 3) | (*(l + 2) << 8) | (*(l + 1) << 16) | (*(l + 0) << 24);
+}
+
+// same
+float ReadLittleFloat (unsigned char *f)
+{
+	union
+	{
+		float   f;
+		byte    b[4];
+	} dat2;
+	
+	
+	dat2.b[0] = f[0];
+	dat2.b[1] = f[1];
+	dat2.b[2] = f[2];
+	dat2.b[3] = f[3];
+	return dat2.f;
+}
+
+float ReadBigFloat (unsigned char *f)
+{
+	union
+	{
+		float   f;
+		byte    b[4];
+	} dat2;
+	
+	
+	dat2.b[0] = f[0];
+	dat2.b[1] = f[1];
+	dat2.b[2] = f[2];
+	dat2.b[3] = f[3];
+	return dat2.f;
+}
 /*
 ==============================================================================
 
@@ -531,7 +568,7 @@ Handles byte ordering and avoids alignment errors
 void MSG_WriteChar (sizebuf_t *sb, int c)
 {
 	byte    *buf;
-
+	
 #ifdef PARANOID
 	if (c < -128 || c > 127)
 		Sys_Error ("MSG_WriteChar: range error");
@@ -544,11 +581,13 @@ void MSG_WriteChar (sizebuf_t *sb, int c)
 void MSG_WriteByte (sizebuf_t *sb, int c)
 {
 	byte    *buf;
-
+	
 #ifdef PARANOID
 	if (c < 0 || c > 255)
 		Sys_Error ("MSG_WriteByte: range error");
 #endif
+
+	//Con_Printf("MSG_WriteByte\n");
 
 	buf = SZ_GetSpace (sb, 1);
 	buf[0] = c;
@@ -557,11 +596,13 @@ void MSG_WriteByte (sizebuf_t *sb, int c)
 void MSG_WriteShort (sizebuf_t *sb, int c)
 {
 	byte    *buf;
-
+	
 #ifdef PARANOID
 	if (c < ((short)0x8000) || c > (short)0x7fff)
 		Sys_Error ("MSG_WriteShort: range error");
 #endif
+
+	//Con_Printf("MSG_WriteShort\n");
 
 	buf = SZ_GetSpace (sb, 2);
 	buf[0] = c&0xff;
@@ -572,6 +613,8 @@ void MSG_WriteLong (sizebuf_t *sb, int c)
 {
 	byte    *buf;
 
+	//Con_Printf("MSG_WriteLong\n");
+	
 	buf = SZ_GetSpace (sb, 4);
 	buf[0] = c&0xff;
 	buf[1] = (c>>8)&0xff;
@@ -586,11 +629,11 @@ void MSG_WriteFloat (sizebuf_t *sb, float f)
 		float   f;
 		int     l;
 	} dat;
-
-
+	
+	
 	dat.f = f;
 	dat.l = LittleLong (dat.l);
-
+	
 	SZ_Write (sb, &dat.l, 4);
 }
 
@@ -602,41 +645,15 @@ void MSG_WriteString (sizebuf_t *sb, char *s)
 		SZ_Write (sb, s, Q_strlen(s)+1);
 }
 
-//johnfitz -- original behavior, 13.3 fixed point coords, max range +-4096
-void MSG_WriteCoord16 (sizebuf_t *sb, float f)
-{
-	MSG_WriteShort (sb, Q_rint(f*8));
-}
-
-//johnfitz -- 16.8 fixed point coords, max range +-32768
-void MSG_WriteCoord24 (sizebuf_t *sb, float f)
-{
-	MSG_WriteShort (sb, f);
-	MSG_WriteByte (sb, (int)(f*255)%255);
-}
-
-//johnfitz -- 32-bit float coords
-void MSG_WriteCoord32f (sizebuf_t *sb, float f)
-{
-	MSG_WriteFloat (sb, f);
-}
-
 void MSG_WriteCoord (sizebuf_t *sb, float f)
 {
-	MSG_WriteCoord16 (sb, f);
+	MSG_WriteShort (sb, (int)(f*8));
 }
 
 void MSG_WriteAngle (sizebuf_t *sb, float f)
 {
-	MSG_WriteByte (sb, Q_rint(f * 256.0 / 360.0) & 255); //johnfitz -- use Q_rint instead of (int)
+	MSG_WriteByte (sb, ((int)f*256/360) & 255);
 }
-
-//johnfitz -- for PROTOCOL_FITZQUAKE
-void MSG_WriteAngle16 (sizebuf_t *sb, float f)
-{
-	MSG_WriteShort (sb, Q_rint(f * 65536.0 / 360.0) & 65535);
-}
-//johnfitz
 
 //
 // reading functions
@@ -826,28 +843,29 @@ void SZ_Clear (sizebuf_t *buf)
 void *SZ_GetSpace (sizebuf_t *buf, int length)
 {
 	void    *data;
-
+	
 	if (buf->cursize + length > buf->maxsize)
 	{
 		if (!buf->allowoverflow)
 			Sys_Error ("SZ_GetSpace: overflow without allowoverflow set");
-
+		
 		if (length > buf->maxsize)
 			Sys_Error ("SZ_GetSpace: %i is > full buffer size", length);
-
+			
 		buf->overflowed = true;
 		Con_Printf ("SZ_GetSpace: overflow");
-		SZ_Clear (buf);
+		SZ_Clear (buf); 
 	}
 
 	data = buf->data + buf->cursize;
 	buf->cursize += length;
-
+	
 	return data;
 }
 
 void SZ_Write (sizebuf_t *buf, void *data, int length)
 {
+	Con_Printf("SZ_Write\n");
 	Q_memcpy (SZ_GetSpace(buf,length),data,length);
 }
 
@@ -856,6 +874,8 @@ void SZ_Print (sizebuf_t *buf, char *data)
 	int             len;
 
 	len = Q_strlen(data)+1;
+
+	Con_Printf("SZ_Print\n");
 
 // byte * cast to keep VC++ happy
 	if (buf->data[buf->cursize-1])
@@ -1086,35 +1106,8 @@ being registered.
 */
 void COM_CheckRegistered (void)
 {
-	int             h;
-	unsigned short  check[128];
-	int                     i;
-
-	COM_OpenFile("gfx/pop.lmp", &h);
-	static_registered = 0;
-
-	if (h == -1)
-	{
-#if WINDED
-	Sys_Error ("This dedicated server requires a full registered copy of Quake");
-#endif
-		Con_Printf ("Playing shareware version.\n");
-		if (com_modified)
-			Sys_Error ("You must have the registered version to use modified games");
-		return;
-	}
-
-	Sys_FileRead (h, check, sizeof(check));
-	COM_CloseFile (h);
-
-	for (i=0 ; i<128 ; i++)
-		if (pop[i] != (unsigned short)BigShort (check[i]))
-			Sys_Error ("Corrupted data file.");
-
-	Cvar_Set ("cmdline", com_cmdline+1); //johnfitz -- eliminate leading space
 	Cvar_Set ("registered", "1");
 	static_registered = 1;
-	Con_Printf ("Playing registered version.\n");
 }
 
 
@@ -1190,16 +1183,6 @@ void COM_InitArgv (int argc, char **argv)
 	}
 }
 
-/*
-================
-Test_f -- johnfitz
-================
-*/
-#ifdef _DEBUG
-void Test_f (void)
-{
-}
-#endif
 
 /*
 ================
@@ -1210,37 +1193,19 @@ void COM_Init (char *basedir)
 {
 	byte    swaptest[2] = {1,0};
 
-// set the byte swapping variables in a portable manner
-	if ( *(short *)swaptest == 1)
-	{
+	// set the byte swapping variables in a portable manner
+	// This is necessary because egcs 1.1.1 mis-compiles swaptest with -O2
+	if ( SDL_BYTEORDER == SDL_LIL_ENDIAN )
 		bigendien = false;
 		BigShort = ShortSwap;
-		LittleShort = ShortNoSwap;
 		BigLong = LongSwap;
-		LittleLong = LongNoSwap;
 		BigFloat = FloatSwap;
-		LittleFloat = FloatNoSwap;
-	}
-	else
-	{
-		bigendien = true;
-		BigShort = ShortNoSwap;
-		LittleShort = ShortSwap;
-		BigLong = LongNoSwap;
-		LittleLong = LongSwap;
-		BigFloat = FloatNoSwap;
-		LittleFloat = FloatSwap;
-	}
 
 	Cvar_RegisterVariable (&registered);
 	Cvar_RegisterVariable (&cmdline);
 	Cmd_AddCommand ("path", COM_Path_f);
 	COM_InitFilesystem ();
 	COM_CheckRegistered ();
-
-#ifdef _DEBUG
-	Cmd_AddCommand ("test", Test_f); //johnfitz
-#endif
 }
 
 
@@ -1532,7 +1497,10 @@ int COM_FindFile (char *filename, int *handle, FILE **file)
 				strcpy (netpath, cachepath);
 			}
 
-			Con_DPrintf ("FindFile: %s\n",netpath);
+			if (developer.value) {
+				Sys_Printf ("FindFile: %s\n",netpath);
+			}
+
 			com_filesize = Sys_FileOpenRead (netpath, &i);
 			if (handle)
 				*handle = i;
@@ -1546,7 +1514,9 @@ int COM_FindFile (char *filename, int *handle, FILE **file)
 
 	}
 
-	Con_DPrintf ("FindFile: can't find %s\n", filename);
+	if (developer.value) {
+		Sys_Printf ("FindFile: can't find %s\n", filename);
+	}
 
 	if (handle)
 		*handle = -1;
@@ -1654,9 +1624,6 @@ byte *COM_LoadFile (char *path, int usehunk)
 
 	((byte *)buf)[len] = 0;
 
-	// Draw_BeginDisc causes core dumps when called excessively in big mods S.A.
-	// Draw_BeginDisc ();
-
 	Sys_FileRead (h, buf, len);
 	COM_CloseFile (h);
 
@@ -1679,6 +1646,29 @@ void COM_LoadCacheFile (char *path, struct cache_user_s *cu)
 	COM_LoadFile (path, 3);
 }
 
+void COM_LoadPictoCache(char *path, struct cache_user_s *cu, int image_width, int image_height)
+{
+	loadcache = cu;
+
+	char    base[32];
+	byte    *buf;
+
+	COM_FileBase (path, base);
+
+	// Allocate space on cache, return buffer
+	buf = Cache_Alloc (loadcache, image_height*image_width + sizeof(qpic_t) - 4 + 1, base); // width, height, data
+
+	((byte *)buf)[image_height*image_width + sizeof(qpic_t) - 4] = 0;
+
+	byte *tmp_buf = malloc(image_height*image_width + sizeof(qpic_t) - 4);
+	qpic_t *tmp_pic = tmp_buf;
+	tmp_pic->width = image_width;
+	tmp_pic->height = image_height;
+	memcpy(tmp_pic->data, converted_pixels, image_width*image_height);
+	memcpy(buf, tmp_buf, image_height*image_width + sizeof(qpic_t) - 4);
+
+	free(tmp_buf);
+}
 // uses temp hunk if larger than bufsize
 byte *COM_LoadStackFile (char *path, void *buffer, int bufsize)
 {
@@ -1839,26 +1829,6 @@ void COM_InitFilesystem () //johnfitz -- modified based on topaz's tutorial
 	// start up with GAMENAME by default (id1)
 	COM_AddGameDirectory (va("%s/"GAMENAME, basedir) );
 	strcpy (com_gamedir, va("%s/"GAMENAME, basedir));
-
-	//johnfitz -- track number of mission packs added
-	//since we don't want to allow the "game" command to strip them away
-	com_nummissionpacks = 0;
-	if (COM_CheckParm ("-rogue"))
-	{
-		COM_AddGameDirectory (va("%s/rogue", basedir) );
-		com_nummissionpacks++;
-	}
-	if (COM_CheckParm ("-hipnotic"))
-	{
-		COM_AddGameDirectory (va("%s/hipnotic", basedir) );
-		com_nummissionpacks++;
-	}
-	if (COM_CheckParm ("-quoth"))
-	{
-		COM_AddGameDirectory (va("%s/quoth", basedir) );
-		com_nummissionpacks++;
-	}
-	//johnfitz
 
 	i = COM_CheckParm ("-game");
 	if (i && i < com_argc-1)

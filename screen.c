@@ -43,6 +43,8 @@ cvar_t 		scr_showfps = {"scr_showfps", "0"};
 
 qboolean	scr_initialized;		// ready to draw
 
+char      *hitmark;
+
 qpic_t		*scr_ram;
 qpic_t		*scr_net;
 qpic_t		*scr_turtle;
@@ -187,6 +189,271 @@ void SCR_CheckDrawCenterString (void)
 	SCR_DrawCenterString ();
 }
 
+/*
+===============================================================================
+
+Press somthing printing
+
+===============================================================================
+*/
+
+char		scr_usestring[64];
+char 		scr_usestring2[64];
+float		scr_usetime_off = 0.0f;
+int			button_pic_x;
+extern char 		*b_leftbutton;
+extern char 		*b_rightbutton;
+extern char 		*b_centerbutton;
+extern char 		*b_downbutton;
+extern char 		*b_upbutton;
+
+/*
+==============
+SCR_UsePrint
+
+Similiar to above, but will also print the current button for the action.
+==============
+*/
+
+char *GetButtonIcon (char *buttonname)
+{
+	int		j;
+	int		l;
+	char	*b;
+	l = strlen(buttonname);
+
+	for (j=0 ; j<256 ; j++)
+	{
+		b = keybindings[j];
+		if (!b)
+			continue;
+		if (!strncmp (b, buttonname, l) )
+		{
+			if (!strcmp(Key_KeynumToString(j), "UPARROW")) {
+				return b_upbutton;
+			}
+			if (!strcmp(Key_KeynumToString(j), "DOWNARROW")) {
+				return b_downbutton;
+			}
+			if (!strcmp(Key_KeynumToString(j), "K_ENTER")) {
+				return b_centerbutton;
+			}
+			if (!strcmp(Key_KeynumToString(j), "RIGHTARROW")) {
+				return b_rightbutton;
+			}
+			if (!strcmp(Key_KeynumToString(j), "LEFTARROW")) {
+				return b_leftbutton;
+			}
+		}
+	}
+	return b_downbutton;
+}
+
+char *GetUseButtonL ()
+{
+	int		j;
+	int		l;
+	char	*b;
+	l = strlen("+use");
+
+	for (j=0 ; j<256 ; j++)
+	{
+		b = keybindings[j];
+		if (!b)
+			continue;
+		if (!strncmp (b, "+use", l) )
+		{
+			return " ";
+		}
+	}
+	return " ";
+}
+
+char *GetPerkName (int perk)
+{
+	switch (perk)
+	{
+		case 1:
+			return "Quick Revive";
+		case 2:
+			return "Juggernog";
+		case 3:
+			return "Speed Cola";
+		case 4:
+			return "Double Tap";
+		case 5:
+			return "Stamin-Up";
+		case 6:
+			return "PhD Flopper";
+		case 7:
+			return "Deadshot Daiquiri";
+		case 8:
+			return "Mule Kick";
+		default:
+			return "NULL";
+	}
+}
+
+void SCR_UsePrint (int type, int cost, int weapon)
+{
+	//naievil -- fixme
+    char s[128];
+	char c[128];
+
+    switch (type)
+	{
+		case 0://clear
+			strcpy(s, "");
+			strcpy(c, "");
+			break;
+		case 1://door
+			strcpy(s, va("Hold %s to open Door\n", GetUseButtonL()));
+			strcpy(c, va("[Cost: %i]\n", cost));
+			button_pic_x = 5;
+			break;
+		case 2://debris
+			strcpy(s, va("Hold %s to remove Debris\n", GetUseButtonL()));
+			strcpy(c, va("[Cost: %i]\n", cost));
+			button_pic_x = 5;
+			break;
+		case 3://ammo
+			strcpy(s, va("Hold %s to buy Ammo for %s\n", GetUseButtonL(), pr_strings+sv_player->v.Weapon_Name_Touch));
+			strcpy(c, va("[Cost: %i]\n", cost));
+			button_pic_x = 5;
+			break;
+		case 4://weapon
+			strcpy(s, va("Hold %s to buy %s\n", GetUseButtonL(), pr_strings+sv_player->v.Weapon_Name_Touch));
+			strcpy(c, va("[Cost: %i]\n", cost));
+			button_pic_x = 5;
+			break;
+		case 5://window
+			strcpy(s, va("Hold %s to Rebuild Barrier\n", GetUseButtonL()));
+			strcpy(c, "");
+			button_pic_x = 5;
+			break;
+		case 6://box
+			strcpy(s, va("Hold %s to buy a Random Weapon\n", GetUseButtonL()));
+			strcpy(c, va("[Cost: %i]\n", cost));
+			button_pic_x = 5;
+			break;
+		case 7://box take
+			strcpy(s, va("Press %s to take Weapon\n", GetUseButtonL()));
+			strcpy(c, "");
+			button_pic_x = 6;
+			break;
+		case 8://power
+			strcpy(s, "The Power must be Activated first\n");
+			strcpy(c, "");
+			button_pic_x = 100;
+			break;
+		case 9://perk
+			strcpy(s, va("Hold %s to buy %s\n", GetUseButtonL(), GetPerkName(weapon)));
+			strcpy(c, va("[Cost: %i]\n", cost));
+			button_pic_x = 5;
+			break;
+		case 10://turn on power
+			strcpy(s, va("Hold %s to Turn On the Power\n", GetUseButtonL()));
+			strcpy(c, "");
+			button_pic_x = 5;
+			break;
+		case 11://turn on trap
+			strcpy(s, va("Hold %s to Activate the Trap\n", GetUseButtonL()));
+			strcpy(c, va("[Cost: %i]\n", cost));
+			button_pic_x = 5;
+			break;
+		case 12://PAP
+			strcpy(s, va("Hold %s to Pack-a-Punch\n", GetUseButtonL()));
+			strcpy(c, va("[Cost: %i]\n", cost));
+			button_pic_x = 5;
+			break;
+		case 13://revive
+			strcpy(s, va("Hold %s to Fix your Code.. :)\n", GetUseButtonL()));
+			strcpy(c, "");
+			button_pic_x = 5;
+			break;
+		case 14://use teleporter (free)
+			strcpy(s, va("Hold %s to use Teleporter\n", GetUseButtonL()));
+			strcpy(c, "");
+			button_pic_x = 5;
+			break;
+		case 15://use teleporter (cost)
+			strcpy(s, va("Hold %s to use Teleporter\n", GetUseButtonL()));
+			strcpy(c, va("[Cost: %i]\n", cost));
+			button_pic_x = 5;
+			break;
+		case 16://tp cooldown
+			strcpy(s, "Teleporter is cooling down\n");
+			strcpy(c, "");
+			button_pic_x = 100;
+			break;
+		case 17://link
+			strcpy(s, va("Hold %s to initiate link to pad\n", GetUseButtonL()));
+			strcpy(c, "");
+			button_pic_x = 5;
+			break;
+		case 18://no link
+			strcpy(s, "Link not active\n");
+			strcpy(c, "");
+			button_pic_x = 100;
+			break;
+		case 19://finish link
+			strcpy(s, va("Hold %s to link pad with core\n", GetUseButtonL()));
+			strcpy(c, "");
+			button_pic_x = 5;
+			break;
+		case 20://buyable ending
+			strcpy(s, va("Hold %s to End the Game\n", GetUseButtonL()));
+			strcpy(c, va("[Cost: %i]\n", cost));
+			button_pic_x = 5;
+			break;
+		default:
+			Con_Printf ("No type defined in engine for useprint\n");
+			break;
+	}
+
+	strncpy (scr_usestring, va(s), sizeof(scr_usestring)-1);
+	strncpy (scr_usestring2, va(c), sizeof(scr_usestring2)-1);
+	scr_usetime_off = 0.1;
+}
+
+
+void SCR_DrawUseString (void)
+{
+	int		l, l2;
+	int		x, x2, y;
+
+	if (cl.stats[STAT_HEALTH] < 0)
+		return;
+// the finale prints the characters one at a time
+
+	y = ((vid.height * 2) / 3);
+	l = strlen (scr_usestring);
+    x = (vid.width - l*8)/2;
+
+	l2 = strlen (scr_usestring2);
+	x2 = (vid.width - l2*8)/2;
+
+    	Draw_String (x, y, scr_usestring);
+	Draw_String (x2, y + 10, scr_usestring2);
+	Draw_TransPic (x + button_pic_x*8, y, Draw_CachePic(GetButtonIcon("+use")));
+}
+
+void SCR_CheckDrawUseString (void)
+{
+	scr_copytop = 1;
+
+	scr_usetime_off -= host_frametime;
+
+	if (scr_usetime_off <= 0 && !cl.intermission)
+		return;
+	if (key_dest != key_game)
+		return;
+    if (cl.stats[STAT_HEALTH] <= 0)
+        return;
+
+	SCR_DrawUseString ();
+}
+
 //=============================================================================
 
 /*
@@ -227,9 +494,6 @@ static void SCR_CalcRefdef (void)
 	scr_fullupdate = 0;		// force a background redraw
 	vid.recalc_refdef = 0;
 
-// force the status bar to redraw
-	Sbar_Changed ();
-
 //========================================
 	
 // bound viewsize
@@ -253,13 +517,6 @@ static void SCR_CalcRefdef (void)
 	else
 		size = scr_viewsize.value;
 
-	if (size >= 120)
-		sb_lines = 0;		// no status bar at all
-	else if (size >= 110)
-		sb_lines = 24;		// no inventory
-	else
-		sb_lines = 24+16+8;
-
 // these calculations mirror those in R_Init() for r_refdef, but take no
 // account of water warping
 	vrect.x = 0;
@@ -267,7 +524,7 @@ static void SCR_CalcRefdef (void)
 	vrect.width = vid.width;
 	vrect.height = vid.height;
 
-	R_SetVrect (&vrect, &scr_vrect, sb_lines);
+	R_SetVrect (&vrect, &scr_vrect, 0);
 
 // guard against going from one mode to another that's less than half the
 // vertical resolution
@@ -275,7 +532,7 @@ static void SCR_CalcRefdef (void)
 		scr_con_current = vid.height;
 
 // notify the refresh of the change
-	R_ViewChanged (&vrect, sb_lines, vid.aspect);
+	R_ViewChanged (&vrect, 0, vid.aspect);
 }
 
 
@@ -324,7 +581,6 @@ void SCR_Init (void)
 	Cvar_RegisterVariable (&scr_centertime);
 	Cvar_RegisterVariable (&scr_printspeed);
 	Cvar_RegisterVariable (&scr_showfps);
-
 //
 // register our commands
 //
@@ -336,10 +592,10 @@ void SCR_Init (void)
 	scr_net = Draw_PicFromWad ("net");
 	scr_turtle = Draw_PicFromWad ("turtle");
 
+	hitmark = "gfx/hud/hit_marker";
+
 	scr_initialized = true;
 }
-
-//============================================================================
 
 /*
 ==============
@@ -526,7 +782,6 @@ void SCR_SetUpToDrawConsole (void)
 	{
 		scr_copytop = 1;
 		Draw_TileClear (0,(int)scr_con_current,vid.width, vid.height - (int)scr_con_current);
-		Sbar_Changed ();
 	}
 	else if (clearnotify++ < vid.numpages)
 	{
@@ -721,7 +976,6 @@ void SCR_BeginLoadingPlaque (void)
 
 	scr_drawloading = true;
 	scr_fullupdate = 0;
-	Sbar_Changed ();
 	SCR_UpdateScreen ();
 	scr_drawloading = false;
 
@@ -802,6 +1056,9 @@ int SCR_ModalMessage (char *text)
 	scr_drawdialog = false;
 	
 	S_ClearBuffer ();		// so dma doesn't loop current sound
+
+	// clear
+        key_lastpress = 0;
 
 	do
 	{
@@ -921,7 +1178,6 @@ void SCR_UpdateScreen (void)
 	{	// clear the entire screen
 		scr_copyeverything = 1;
 		Draw_TileClear (0,0,vid.width,vid.height);
-		Sbar_Changed ();
 	}
 
 	pconupdate = NULL;
@@ -937,43 +1193,19 @@ void SCR_UpdateScreen (void)
 
 	D_EnableBackBufferAccess ();	// of all overlay stuff if drawing directly
 
-	if (scr_drawdialog)
-	{
-		Sbar_Draw ();
-		Draw_FadeScreen ();
-		SCR_DrawNotifyString ();
-		scr_copyeverything = true;
-	}
-	else if (scr_drawloading)
-	{
-		SCR_DrawLoading ();
-		Sbar_Draw ();
-	}
-	else if (cl.intermission == 1 && key_dest == key_game)
-	{
-		Sbar_IntermissionOverlay ();
-	}
-	else if (cl.intermission == 2 && key_dest == key_game)
-	{
-		Sbar_FinaleOverlay ();
-		SCR_CheckDrawCenterString ();
-	}
-	else if (cl.intermission == 3 && key_dest == key_game)
-	{
-		SCR_CheckDrawCenterString ();
-	}
-	else
-	{
-		SCR_DrawRam ();
-		SCR_DrawNet ();
-		SCR_DrawTurtle ();
-		SCR_DrawPause ();
-		SCR_CheckDrawCenterString ();
-		Sbar_Draw ();
-		SCR_DrawFPS ();
-		SCR_DrawConsole ();
-		M_Draw ();
-	}
+	Draw_Crosshair();
+
+	SCR_DrawRam ();
+	SCR_DrawNet ();
+	SCR_DrawTurtle ();
+	SCR_DrawPause ();
+	SCR_CheckDrawCenterString ();
+	SCR_CheckDrawUseString ();
+	HUD_Draw();
+	SCR_DrawConsole ();
+	M_Draw ();
+
+	SCR_DrawFPS (); //johnfitz
 
 	D_DisableBackBufferAccess ();	// for adapters that can't stay mapped in
 									//  for linear writes all the time
@@ -1003,7 +1235,7 @@ void SCR_UpdateScreen (void)
 		vrect.x = 0;
 		vrect.y = 0;
 		vrect.width = vid.width;
-		vrect.height = vid.height - sb_lines;
+		vrect.height = vid.height;
 		vrect.pnext = 0;
 	
 		VID_Update (&vrect);

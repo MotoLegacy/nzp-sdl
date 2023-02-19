@@ -97,7 +97,6 @@ void Host_Status_f (void)
 		}
 		else
 			hours = 0;
-		print ("#%-2u %-16.16s  %3i  %2i:%02i:%02i\n", j+1, client->name, (int)client->edict->v.frags, hours, minutes, seconds);
 		print ("   %s\n", client->netconnection->address);
 	}
 }
@@ -447,7 +446,7 @@ void Host_SavegameComment (char *text)
 	for (i=0 ; i<SAVEGAME_COMMENT_LENGTH ; i++)
 		text[i] = ' ';
 	memcpy (text, cl.levelname, strlen(cl.levelname));
-	sprintf (kills,"kills:%3i/%3i", cl.stats[STAT_MONSTERS], cl.stats[STAT_TOTALMONSTERS]);
+	//sprintf (kills,"kills:%3i/%3i", cl.stats[STAT_MONSTERS], cl.stats[STAT_TOTALMONSTERS]);
 	memcpy (text+22, kills, strlen(kills));
 // convert space to _ to make stdio happy
 	for (i=0 ; i<SAVEGAME_COMMENT_LENGTH ; i++)
@@ -647,13 +646,18 @@ void Host_Loadgame_f (void)
 
 // load the edicts out of the savegame file
 	entnum = -1;		// -1 is the globals
-	while (!feof(f))
+        bool done = false;
+	while (!done)
 	{
 		for (i=0 ; i<sizeof(str)-1 ; i++)
 		{
 			r = fgetc (f);
-			if (r == EOF || !r)
-				break;
+			if (r == EOF || !r || r < 0)
+                        {
+                            if(r == EOF)
+                                done = true;
+                            break;
+                        }
 			str[i] = r;
 			if (r == '}')
 			{
@@ -728,8 +732,8 @@ void SaveGamestate()
 	fprintf (f, "%i\n", SAVEGAME_VERSION);
 	Host_SavegameComment (comment);
 	fprintf (f, "%s\n", comment);
-//	for (i=0 ; i<NUM_SPAWN_PARMS ; i++)
-//		fprintf (f, "%f\n", svs.clients->spawn_parms[i]);
+	for (i=0 ; i<NUM_SPAWN_PARMS ; i++)
+		fprintf (f, "%f\n", svs.clients->spawn_parms[i]);
 	fprintf (f, "%f\n", skill.value);
 	fprintf (f, "%s\n", sv.name);
 	fprintf (f, "%f\n", sv.time);
@@ -769,7 +773,7 @@ int LoadGamestate(char *level, char *startspot)
 	edict_t	*ent;
 	int		entnum;
 	int		version;
-//	float	spawn_parms[NUM_SPAWN_PARMS];
+	float	spawn_parms[NUM_SPAWN_PARMS];
 
 	sprintf (name, "%s/%s.gip", com_gamedir, level);
 	
@@ -789,8 +793,8 @@ int LoadGamestate(char *level, char *startspot)
 		return -1;
 	}
 	fscanf (f, "%s\n", str);
-//	for (i=0 ; i<NUM_SPAWN_PARMS ; i++)
-//		fscanf (f, "%f\n", &spawn_parms[i]);
+	for (i=0 ; i<NUM_SPAWN_PARMS ; i++)
+		fscanf (f, "%f\n", &spawn_parms[i]);
 	fscanf (f, "%f\n", &sk);
 	Cvar_SetValue ("skill", sk);
 
@@ -808,7 +812,7 @@ int LoadGamestate(char *level, char *startspot)
 // load the light styles
 	for (i=0 ; i<MAX_LIGHTSTYLES ; i++)
 	{
-		fscanf (f, "%s\n", str);
+            fscanf (f, "%s\n", str);
 		sv.lightstyles[i] = Hunk_Alloc (strlen(str)+1);
 		strcpy (sv.lightstyles[i], str);
 	}
@@ -816,7 +820,7 @@ int LoadGamestate(char *level, char *startspot)
 // load the edicts out of the savegame file
 	while (!feof(f))
 	{
-		fscanf (f, "%i\n",&entnum);
+            fscanf (f, "%i\n",&entnum);
 		for (i=0 ; i<sizeof(str)-1 ; i++)
 		{
 			r = fgetc (f);
@@ -1230,11 +1234,11 @@ void Host_Pause_f (void)
 
 		if (sv.paused)
 		{
-			SV_BroadcastPrintf ("%s paused the game\n", PR_GetString(sv_player->v.netname));
+			SV_BroadcastPrintf ("%s paused the game\n", pr_strings + sv_player->v.netname);
 		}
 		else
 		{
-			SV_BroadcastPrintf ("%s unpaused the game\n",PR_GetString(sv_player->v.netname));
+			SV_BroadcastPrintf ("%s unpaused the game\n",pr_strings + sv_player->v.netname);
 		}
 
 	// send notification to all clients
@@ -1340,12 +1344,6 @@ void Host_Spawn_f (void)
 		MSG_WriteByte (&host_client->message, svc_updatename);
 		MSG_WriteByte (&host_client->message, i);
 		MSG_WriteString (&host_client->message, client->name);
-		MSG_WriteByte (&host_client->message, svc_updatefrags);
-		MSG_WriteByte (&host_client->message, i);
-		MSG_WriteShort (&host_client->message, client->old_frags);
-		MSG_WriteByte (&host_client->message, svc_updatecolors);
-		MSG_WriteByte (&host_client->message, i);
-		MSG_WriteByte (&host_client->message, client->colors);
 	}
 	
 // send all current light styles
@@ -1360,22 +1358,12 @@ void Host_Spawn_f (void)
 // send some stats
 //
 	MSG_WriteByte (&host_client->message, svc_updatestat);
-	MSG_WriteByte (&host_client->message, STAT_TOTALSECRETS);
-	MSG_WriteLong (&host_client->message, pr_global_struct->total_secrets);
+	MSG_WriteByte (&host_client->message, STAT_ROUNDS);
+	MSG_WriteByte (&host_client->message, pr_global_struct->rounds);
 
 	MSG_WriteByte (&host_client->message, svc_updatestat);
-	MSG_WriteByte (&host_client->message, STAT_TOTALMONSTERS);
-	MSG_WriteLong (&host_client->message, pr_global_struct->total_monsters);
-
-	MSG_WriteByte (&host_client->message, svc_updatestat);
-	MSG_WriteByte (&host_client->message, STAT_SECRETS);
-	MSG_WriteLong (&host_client->message, pr_global_struct->found_secrets);
-
-	MSG_WriteByte (&host_client->message, svc_updatestat);
-	MSG_WriteByte (&host_client->message, STAT_MONSTERS);
-	MSG_WriteLong (&host_client->message, pr_global_struct->killed_monsters);
-
-	
+	MSG_WriteByte (&host_client->message, STAT_ROUNDCHANGE);
+	MSG_WriteByte (&host_client->message, pr_global_struct->rounds_change);
 //
 // send a fixangle
 // Never send a roll angle, because savegames can catch the server
@@ -1530,141 +1518,6 @@ void Host_Give_f (void)
 
 	t = Cmd_Argv(1);
 	v = atoi (Cmd_Argv(2));
-	
-	switch (t[0])
-	{
-   case '0':
-   case '1':
-   case '2':
-   case '3':
-   case '4':
-   case '5':
-   case '6':
-   case '7':
-   case '8':
-   case '9':
-      // MED 01/04/97 added hipnotic give stuff
-      if (hipnotic)
-      {
-         if (t[0] == '6')
-         {
-            if (t[1] == 'a')
-               sv_player->v.items = (int)sv_player->v.items | HIT_PROXIMITY_GUN;
-            else
-               sv_player->v.items = (int)sv_player->v.items | IT_GRENADE_LAUNCHER;
-         }
-         else if (t[0] == '9')
-            sv_player->v.items = (int)sv_player->v.items | HIT_LASER_CANNON;
-         else if (t[0] == '0')
-            sv_player->v.items = (int)sv_player->v.items | HIT_MJOLNIR;
-         else if (t[0] >= '2')
-            sv_player->v.items = (int)sv_player->v.items | (IT_SHOTGUN << (t[0] - '2'));
-      }
-      else
-      {
-         if (t[0] >= '2')
-            sv_player->v.items = (int)sv_player->v.items | (IT_SHOTGUN << (t[0] - '2'));
-      }
-		break;
-	
-    case 's':
-		if (rogue)
-		{
-	        val = GetEdictFieldValue(sv_player, "ammo_shells1");
-		    if (val)
-			    val->_float = v;
-		}
-
-        sv_player->v.ammo_shells = v;
-        break;		
-    case 'n':
-		if (rogue)
-		{
-			val = GetEdictFieldValue(sv_player, "ammo_nails1");
-			if (val)
-			{
-				val->_float = v;
-				if (sv_player->v.weapon <= IT_LIGHTNING)
-					sv_player->v.ammo_nails = v;
-			}
-		}
-		else
-		{
-			sv_player->v.ammo_nails = v;
-		}
-        break;		
-    case 'l':
-		if (rogue)
-		{
-			val = GetEdictFieldValue(sv_player, "ammo_lava_nails");
-			if (val)
-			{
-				val->_float = v;
-				if (sv_player->v.weapon > IT_LIGHTNING)
-					sv_player->v.ammo_nails = v;
-			}
-		}
-        break;
-    case 'r':
-		if (rogue)
-		{
-			val = GetEdictFieldValue(sv_player, "ammo_rockets1");
-			if (val)
-			{
-				val->_float = v;
-				if (sv_player->v.weapon <= IT_LIGHTNING)
-					sv_player->v.ammo_rockets = v;
-			}
-		}
-		else
-		{
-			sv_player->v.ammo_rockets = v;
-		}
-        break;		
-    case 'm':
-		if (rogue)
-		{
-			val = GetEdictFieldValue(sv_player, "ammo_multi_rockets");
-			if (val)
-			{
-				val->_float = v;
-				if (sv_player->v.weapon > IT_LIGHTNING)
-					sv_player->v.ammo_rockets = v;
-			}
-		}
-        break;		
-    case 'h':
-        sv_player->v.health = v;
-        break;		
-    case 'c':
-		if (rogue)
-		{
-			val = GetEdictFieldValue(sv_player, "ammo_cells1");
-			if (val)
-			{
-				val->_float = v;
-				if (sv_player->v.weapon <= IT_LIGHTNING)
-					sv_player->v.ammo_cells = v;
-			}
-		}
-		else
-		{
-			sv_player->v.ammo_cells = v;
-		}
-        break;		
-    case 'p':
-		if (rogue)
-		{
-			val = GetEdictFieldValue(sv_player, "ammo_plasma");
-			if (val)
-			{
-				val->_float = v;
-				if (sv_player->v.weapon > IT_LIGHTNING)
-					sv_player->v.ammo_cells = v;
-			}
-		}
-        break;		
-    }
 }
 
 edict_t	*FindViewthing (void)
@@ -1675,7 +1528,7 @@ edict_t	*FindViewthing (void)
 	for (i=0 ; i<sv.num_edicts ; i++)
 	{
 		e = EDICT_NUM(i);
-		if ( !strcmp (PR_GetString(e->v.classname), "viewthing") )
+		if ( !strcmp (pr_strings + e->v.classname, "viewthing") )
 			return e;
 	}
 	Con_Printf ("No viewthing on map\n");

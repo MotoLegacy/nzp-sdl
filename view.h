@@ -26,6 +26,8 @@ extern	byte		ramps[3][256];
 extern float v_blend[4];
 
 extern cvar_t lcd_x;
+extern vec3_t CWeaponRot;
+extern vec3_t CWeaponOffset;//blubs declared this
 
 
 void V_Init (void);

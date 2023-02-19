@@ -50,6 +50,8 @@ espan_t	*span_p, *max_span_p;
 
 int		r_currentkey;
 
+extern	int	screenwidth;
+
 int	current_iv;
 
 int	edge_head_u_shift20, edge_tail_u_shift20;
@@ -66,9 +68,6 @@ float	fv;
 void R_GenerateSpans (void);
 void R_GenerateSpansBackward (void);
 
-void R_LeadingEdge (edge_t *edge);
-void R_LeadingEdgeBackwards (edge_t *edge);
-void R_TrailingEdge (surf_t *surf, edge_t *edge);
 
 
 //=============================================================================
@@ -79,7 +78,7 @@ void R_TrailingEdge (surf_t *surf, edge_t *edge);
 R_DrawCulledPolys
 ==============
 */
-void R_DrawCulledPolys (void)
+static inline void R_DrawCulledPolys (void)
 {
 	surf_t			*s;
 	msurface_t		*pface;
@@ -331,7 +330,7 @@ void R_CleanupSpan ()
 R_LeadingEdgeBackwards
 ==============
 */
-void R_LeadingEdgeBackwards (edge_t *edge)
+static inline void R_LeadingEdgeBackwards (edge_t *edge)
 {
 	espan_t			*span;
 	surf_t			*surf, *surf2;
@@ -411,7 +410,7 @@ gotposition:
 R_TrailingEdge
 ==============
 */
-void R_TrailingEdge (surf_t *surf, edge_t *edge)
+static inline void R_TrailingEdge (surf_t *surf, edge_t *edge)
 {
 	espan_t			*span;
 	int				iu;
@@ -455,7 +454,7 @@ void R_TrailingEdge (surf_t *surf, edge_t *edge)
 R_LeadingEdge
 ==============
 */
-void R_LeadingEdge (edge_t *edge)
+static inline void R_LeadingEdge (edge_t *edge)
 {
 	espan_t			*span;
 	surf_t			*surf, *surf2;

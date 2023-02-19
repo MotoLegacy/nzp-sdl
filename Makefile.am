@@ -100,8 +100,8 @@ goodlookingquake_SOURCES =		\
 	r_vars.c		\
 	render.h		\
 	resource.h		\
-	sbar.c			\
-	sbar.h			\
+	cl_hud.c		\
+	cl_hud.h		\
 	screen.c		\
 	screen.h		\
 	server.h		\
