@@ -30,11 +30,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define OPT_STATICLIGHT 	// motolegacy -- use a static light level for models
 #define OPT_NOLIGHTSTYLES	// motolegacy -- disable use of lightstyles, always on
 #define OPT_WORSEHUNKDEBUG	// motolegacy -- removes 'name' from hunk and cache, useful for low memory systems.
-
-#define FIXEDPOINT_OPT // FW: enable fixed-point optimizations
+#define OPT_FIXEDPOINT 		// FW: enable fixed-point optimizations
 
 /* Fixed-point optimizations, thanks to Pocket Quake and Dan East. */
-#ifdef FIXEDPOINT_OPT
+#ifdef OPT_FIXEDPOINT
 #define USE_PQ_OPT
 #define USE_PQ_OPT1
 #define USE_PQ_OPT2

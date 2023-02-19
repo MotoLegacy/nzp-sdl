@@ -158,7 +158,7 @@ void    VID_Init (unsigned char *palette)
         
     VID_SetPalette(palette);
     
-    sprintf(caption, "Good Looking Quake - Version %4.2f", VERSION);
+    sprintf(caption, "Nazi Zombies: Portable - SDL Version");
     SDL_WM_SetCaption((const char* )&caption, (const char*)&caption);
     
     // now know everything we need to know about the buffer
