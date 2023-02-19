@@ -69,6 +69,8 @@ int alphabling = 0;
 float round_center_x;
 float round_center_y;
 
+char* sb_round_0;
+
 typedef struct
 {
 	int points;
@@ -89,6 +91,7 @@ HUD_Init
 */
 void HUD_Init (void)
 {
+	sb_round_0 = "gfx/hud/r1";
 	strcpy(sb_round[0], "gfx/hud/r1");
 	strcpy(sb_round[1], "gfx/hud/r2");
 	strcpy(sb_round[2], "gfx/hud/r3");
@@ -140,47 +143,57 @@ void HUD_Init (void)
 
 extern char *hitmark;
 
-#define DRAW_CONVERT_CACHE(_picname) Draw_Pic(0, 0, Draw_CachePic(_picname))
+#define PAL_STANDARD		0
+#define PAL_WHITETORED 		1
+
+#define DRAW_CONVERT_CACHE(_picname, forcecol)							\
+({																		\
+	if (forcecol == PAL_STANDARD)										\
+		Draw_Pic(0, 0, Draw_CachePic(_picname));						\
+	else																\
+		Draw_Pic(0, 0, Draw_CachePicColorOverride(_picname, forcecol));	\
+})
+
 void HUD_CacheData(void)
 {
 	Con_Printf("loading and converting round data...\n");
 	for (int i = 0; i < 5; i++) {
-		DRAW_CONVERT_CACHE(sb_round[i]);
+		DRAW_CONVERT_CACHE(sb_round[i], PAL_WHITETORED);
 	}
 
 	for (int i = 0; i < 10; i++) {
-		DRAW_CONVERT_CACHE(sb_round_num[i]);
+		DRAW_CONVERT_CACHE(sb_round_num[i], PAL_WHITETORED);
 	}
 
 	Con_Printf("loading and converting some hud data...\n");
-	DRAW_CONVERT_CACHE(sb_moneyback);
-	DRAW_CONVERT_CACHE(instapic);
-	DRAW_CONVERT_CACHE(x2pic);
+	DRAW_CONVERT_CACHE(sb_moneyback, PAL_STANDARD);
+	DRAW_CONVERT_CACHE(instapic, PAL_STANDARD);
+	DRAW_CONVERT_CACHE(x2pic, PAL_STANDARD);
 
 	Con_Printf("loading and converting some perk data...\n");
-	DRAW_CONVERT_CACHE(revivepic);
-	DRAW_CONVERT_CACHE(jugpic);
-	DRAW_CONVERT_CACHE(floppic);
-	DRAW_CONVERT_CACHE(staminpic);
-	DRAW_CONVERT_CACHE(doublepic);
-	DRAW_CONVERT_CACHE(speedpic);
-	DRAW_CONVERT_CACHE(deadpic);
-	DRAW_CONVERT_CACHE(mulepic);
-	DRAW_CONVERT_CACHE(fragpic);
-	DRAW_CONVERT_CACHE(bettypic);
+	DRAW_CONVERT_CACHE(revivepic, PAL_STANDARD);
+	DRAW_CONVERT_CACHE(jugpic, PAL_STANDARD);
+	DRAW_CONVERT_CACHE(floppic, PAL_STANDARD);
+	DRAW_CONVERT_CACHE(staminpic, PAL_STANDARD);
+	DRAW_CONVERT_CACHE(doublepic, PAL_STANDARD);
+	DRAW_CONVERT_CACHE(speedpic, PAL_STANDARD);
+	DRAW_CONVERT_CACHE(deadpic, PAL_STANDARD);
+	DRAW_CONVERT_CACHE(mulepic, PAL_STANDARD);
+	DRAW_CONVERT_CACHE(fragpic, PAL_STANDARD);
+	DRAW_CONVERT_CACHE(bettypic, PAL_STANDARD);
 
 	Con_Printf("loading and converting some button data...\n");
-	DRAW_CONVERT_CACHE(b_leftbutton);
-	DRAW_CONVERT_CACHE(b_rightbutton);
-	DRAW_CONVERT_CACHE(b_centerbutton);
-	DRAW_CONVERT_CACHE(b_downbutton);
-	DRAW_CONVERT_CACHE(b_upbutton);
+	DRAW_CONVERT_CACHE(b_leftbutton, PAL_STANDARD);
+	DRAW_CONVERT_CACHE(b_rightbutton, PAL_STANDARD);
+	DRAW_CONVERT_CACHE(b_centerbutton, PAL_STANDARD);
+	DRAW_CONVERT_CACHE(b_downbutton, PAL_STANDARD);
+	DRAW_CONVERT_CACHE(b_upbutton, PAL_STANDARD);
 
 	Con_Printf("loading and converting some blood data...\n");
-	DRAW_CONVERT_CACHE(fx_blood_lu);
+	DRAW_CONVERT_CACHE(fx_blood_lu, PAL_STANDARD);
 
 	Con_Printf("loading and converting hitmark data...\n");
-	DRAW_CONVERT_CACHE(hitmark);
+	DRAW_CONVERT_CACHE(hitmark, PAL_STANDARD);
 }
 
 /*
@@ -209,8 +222,10 @@ void HUD_NewMap (void)
 	point_change_interval = 0;
 	point_change_interval_neg = 0;
 
-	round_center_x = (vid.width/2 - (Draw_CachePic(sb_round[0])->width)/2);
-	round_center_y = (vid.height/2 - (Draw_CachePic(sb_round[0])->height)/2);
+	// moto -- before this used draw_cachepic for dimensions which fucked up
+	// using palette hacks
+	round_center_x = (vid.width/2 - (11)/2);
+	round_center_y = (vid.width/2 - (48)/2);
 
 	HUD_CacheData(); // naievil -- this is used to put stuff on cache during a new map
 }

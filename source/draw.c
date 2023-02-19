@@ -69,6 +69,128 @@ qpic_t	*Draw_PicFromWad (char *name)
 
 /*
 ================
+Draw_CachePicColorOverride
+================
+*/
+#define PAL_STANDARD		0
+#define PAL_WHITETORED		1
+// you've never seen a hack this bad!
+// this is basically a duplicate of Draw_CachePic
+// but i was super lazy and didnt wanna go editing
+// all references to it to add this extra parm.
+// basically it switches over color_hack to decide
+// whether or not to manipulate the color values
+byte convert_white_to_red(byte color_index)
+{
+	// keep transparency
+	if (color_index == 255)
+		return color_index;
+
+	// we have significantly less
+	// reds than we do whites so
+	// we have to lose some precision :(
+	switch(color_index) {
+		case 254: return 251;
+		case 15: return 251;
+		case 14: return 250;
+		case 13: return 249;
+		case 12: return 248;
+		case 11: return 247;
+		// precision loss begin
+		case 10: return 228;
+		case 9: return 228;
+		case 8: return 227;
+		case 7: return 227;
+		case 6: return 226;
+		case 5: return 226;
+		case 4: return 225;
+		case 3: return 225;
+	}
+
+	return color_index;
+}
+
+qpic_t *Draw_CachePicColorOverride(char *path, unsigned short color_hack)
+{
+	cachepic_t	*pic;
+	int			i;
+	qpic_t		*dat;
+	
+	for (pic=menu_cachepics, i=0 ; i<menu_numcachepics ; pic++, i++)
+		if (!strcmp (path, pic->name))
+			break;
+
+	if (i == menu_numcachepics)
+	{
+		if (menu_numcachepics == MAX_CACHED_PICS)
+			Sys_Error ("menu_numcachepics == MAX_CACHED_PICS");
+		menu_numcachepics++;
+		strcpy (pic->name, path);
+	}
+
+	dat = Cache_Check (&pic->cache);
+
+	if (dat)
+		return dat;
+
+//
+// load the pic from disk
+//
+	COM_LoadCacheFile (path, &pic->cache);
+	
+	dat = (qpic_t *)pic->cache.data;
+	if (!dat)
+	{
+	#if 1
+		// naievil -- this is the start of the stupid texture conversion stuff 
+		// the goal here is a few steps: open file and grab data, 
+		// then convert to rgb, convert picture to qpal, upload data to cache
+		// then display
+
+		// clear just in case
+		memset(temp_pixel_storage_pixels, 0, MAX_SINGLE_PLANE_PIXEL_SIZE*4);
+		memset(converted_pixels, 0, MAX_SINGLE_PLANE_PIXEL_SIZE);
+
+		// load the image into the buffer
+		int success = loadtextureimage (path, -1, -1, false, false);
+		if (!success) {
+			goto bail;
+		}
+		// Convert to qpal
+		int converted_counter = 0;
+		for (int i = 0; i < image_width * image_height * 4; i+= 4) {
+			converted_pixels[converted_counter] = findclosestpalmatch(temp_pixel_storage_pixels[i], temp_pixel_storage_pixels[i + 1], temp_pixel_storage_pixels[i + 2], temp_pixel_storage_pixels[i + 3]);
+
+			switch(color_hack) {
+				case PAL_WHITETORED: converted_pixels[converted_counter] = convert_white_to_red(converted_pixels[converted_counter]); break;
+				default: break;
+			}
+
+			converted_counter++;
+		}
+
+		COM_LoadPictoCache(path, &pic->cache, image_width, image_height, converted_pixels);
+		dat = (qpic_t *) pic->cache.data;
+		if (!dat) 
+		{
+#endif 
+
+bail:
+		Sys_Error ("Draw_CachePic: failed to load %s", path);
+		}
+		else 
+		{
+			Con_DPrintf("Finished conversion of %s\n", path);
+		}
+	}
+
+	SwapPic (dat);
+
+	return dat;
+}
+
+/*
+================
 Draw_CachePic
 ================
 */
