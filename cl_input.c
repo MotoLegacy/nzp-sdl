@@ -170,6 +170,20 @@ void IN_AimUp (void) {KeyUp(&in_aim);}
 
 void IN_Impulse (void) {in_impulse=Q_atoi(Cmd_Argv(1));}
 
+void In_AimToggle(void)
+{
+	if (in_aim.state & 3)
+	{
+		IN_KLookUp();
+		IN_AimUp();
+	}
+	else
+	{
+		IN_KLookDown();
+		IN_AimDown();
+	}
+}
+
 /*
 ===============
 CL_KeyState
@@ -658,5 +672,7 @@ void CL_InitInput (void)
 	Cmd_AddCommand ("+mlook", IN_MLookDown);
 	Cmd_AddCommand ("-mlook", IN_MLookUp);
 
+// naievil -- aimtoggle used to switch back and forth 
+	Cmd_AddCommand ("aimtoggle", In_AimToggle);
 }
 

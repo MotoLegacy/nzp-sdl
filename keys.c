@@ -797,7 +797,7 @@ void Key_Event (int key, qboolean down)
 	|| (key_dest == key_console && !consolekeys[key])
 	|| (key_dest == key_game && ( !con_forcedup || !consolekeys[key] ) ) )
 	{
-		if (oldkey == key && ((oldkeytime + 0.5) > lastkeytime)) // naievil -- increase double tap bind time
+		if (oldkey == key && ((oldkeytime + 0.3) > lastkeytime)) // naievil -- increase double tap bind time
 		{
 			kb = dtbindings[key];
 			if (kb)
