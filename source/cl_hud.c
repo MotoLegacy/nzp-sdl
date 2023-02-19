@@ -1125,8 +1125,7 @@ int current_perk_order;
 void HUD_Perks (void)
 {
 	int i;
-	int y;
-	y = vid.height - Draw_CachePic(sb_round[1])->height - Draw_CachePic(jugpic)->height -2;
+	int x = 1;
 
 	for (i = 0; i < 9; i++)
 	{
@@ -1134,43 +1133,43 @@ void HUD_Perks (void)
 		{
 			if (perk_order[i] == P_JUG)
 			{
-				Draw_StretchPic (2, y, Draw_CachePic(jugpic), 20, 20);
-				y = y - 22;
+				Draw_TransPic(x, 1, Draw_CachePic(jugpic));
+				x += 15;
 			}
 			else if (perk_order[i] == P_DOUBLE)
 			{
-				Draw_StretchPic (2, y, Draw_CachePic(doublepic), 20, 20);
-				y = y - 22;
+				Draw_TransPic(x, 1, Draw_CachePic(doublepic));
+				x += 15;
 			}
 			else if (perk_order[i] == P_SPEED)
 			{
-				Draw_StretchPic (2, y, Draw_CachePic(speedpic), 20, 20);
-				y = y - 22;
+				Draw_TransPic(x, 1, Draw_CachePic(speedpic));
+				x += 15;
 			}
 			else if (perk_order[i] == P_REVIVE)
 			{
-				Draw_StretchPic (2, y, Draw_CachePic(revivepic), 20, 20);
-				y = y - 22;
+				Draw_TransPic(x, 1, Draw_CachePic(revivepic));
+				x += 15;
 			}
 			else if (perk_order[i] == P_FLOP)
 			{
-				Draw_StretchPic (2, y, Draw_CachePic(floppic), 20, 20);
-				y = y - 22;
+				Draw_TransPic(x, 1, Draw_CachePic(floppic));
+				x += 15;
 			}
 			else if (perk_order[i] == P_STAMIN)
 			{
-				Draw_StretchPic (2, y, Draw_CachePic(staminpic), 20, 20);
-				y = y - 22;
+				Draw_TransPic(x, 1, Draw_CachePic(staminpic));
+				x += 15;
 			}
 			else if (perk_order[i] == P_DEAD)
 			{
-				Draw_StretchPic (2, y, Draw_CachePic(deadpic), 20, 20);
-				y = y - 22;
+				Draw_TransPic(x, 1, Draw_CachePic(deadpic));
+				x += 15;
 			}
 			else if (perk_order[i] == P_MULE)
 			{
-				Draw_StretchPic (2, y, Draw_CachePic(mulepic), 20, 20);
-				y = y - 22;
+				Draw_TransPic(x, 1, Draw_CachePic(mulepic));
+				x += 15;
 			}
 		}
 	}

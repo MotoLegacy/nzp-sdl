@@ -383,7 +383,7 @@ int main (int c, char **v)
 //	signal(SIGFPE, floating_point_exception_handler);
 	signal(SIGFPE, SIG_IGN);
 
-	parms.memsize = 32*1024*1024;
+	parms.memsize = 8*1024*1024;
 	parms.membase = malloc (parms.memsize);
 	parms.basedir = basedir;
     // Disable cache, else it looks in the cache for config.cfg.
