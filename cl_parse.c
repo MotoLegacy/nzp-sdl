@@ -508,8 +508,8 @@ extern int perk_order[9];
 extern int current_perk_order;
 void CL_ParseClientdata (int bits)
 {
-	int		i, j, s;
-	
+	int		i, s;
+
 	if (bits & SU_VIEWHEIGHT)
 		cl.viewheight = MSG_ReadChar ();
 	else
@@ -519,7 +519,8 @@ void CL_ParseClientdata (int bits)
 		cl.idealpitch = MSG_ReadChar ();
 	else
 		cl.idealpitch = 0;
-	/*
+
+
 	if (bits & SU_PERKS)
 		i = MSG_ReadLong ();
 	else
@@ -704,8 +705,10 @@ void CL_ParseClientdata (int bits)
 		}
 		cl.perks = i;
 	}
-*/
-	
+
+	cl.onground = (bits & SU_ONGROUND) != 0;
+	cl.inwater = (bits & SU_INWATER) != 0;
+
 	VectorCopy (cl.mvelocity[0], cl.mvelocity[1]);
 	for (i=0 ; i<3 ; i++)
 	{
@@ -718,39 +721,79 @@ void CL_ParseClientdata (int bits)
 		else
 			cl.mvelocity[0][i] = 0;
 	}
-		
-	cl.onground = (bits & SU_ONGROUND) != 0;
-	cl.inwater = (bits & SU_INWATER) != 0;
 
 	if (bits & SU_WEAPONFRAME)
 		cl.stats[STAT_WEAPONFRAME] = MSG_ReadByte ();
 	else
 		cl.stats[STAT_WEAPONFRAME] = 0;
 
+	if (bits & SU_WEAPONSKIN)
+		cl.stats[STAT_WEAPONSKIN] = MSG_ReadByte ();
+	else
+		cl.stats[STAT_WEAPONSKIN] = 0;
+
+
 	if (bits & SU_WEAPON)
 		i = MSG_ReadByte ();
 	else
 		i = 0;
+
 	if (cl.stats[STAT_WEAPON] != i)
-	{
 		cl.stats[STAT_WEAPON] = i;
-	}
-	
-	i = MSG_ReadShort ();
-	if (cl.stats[STAT_HEALTH] != i)
+
+
+	if (bits & SU_GRENADES)
+		i = MSG_ReadLong ();
+	else
+		i = 0;
+
+	if (cl.stats[STAT_GRENADES] != i)
 	{
-		cl.stats[STAT_HEALTH] = i;
+		HUD_Change_time = Sys_FloatTime() + 6;
+		cl.stats[STAT_GRENADES] = i;
 	}
 
-	i = MSG_ReadByte ();
+	i = MSG_ReadShort ();
+	if (cl.stats[STAT_PRIGRENADES] != i)
+	{
+		HUD_Change_time = Sys_FloatTime() + 6;
+		cl.stats[STAT_PRIGRENADES] = i;
+	}
+
+
+	i = MSG_ReadShort ();
+	if (cl.stats[STAT_SECGRENADES] != i)
+	{
+		HUD_Change_time = Sys_FloatTime() + 6;
+		cl.stats[STAT_SECGRENADES] = i;
+	}
+
+	i = MSG_ReadShort ();
+	if (cl.stats[STAT_HEALTH] != i)
+		cl.stats[STAT_HEALTH] = i;
+
+	i = MSG_ReadShort ();
 	if (cl.stats[STAT_AMMO] != i)
 	{
+		HUD_Change_time = Sys_FloatTime() + 6;
 		cl.stats[STAT_AMMO] = i;
 	}
 
 	i = MSG_ReadByte ();
+	if (cl.stats[STAT_CURRENTMAG] != i)
+	{
+		HUD_Change_time = Sys_FloatTime() + 6;
+		cl.stats[STAT_CURRENTMAG] = i;
+	}
+
+	i = MSG_ReadByte ();
+	if (cl.stats[STAT_ZOOM] != i)
+		cl.stats[STAT_ZOOM] = i;
+
+	i = MSG_ReadByte ();
 	if (cl.stats[STAT_ACTIVEWEAPON] != i)
 	{
+		HUD_Change_time = Sys_FloatTime() + 6;
 		cl.stats[STAT_ACTIVEWEAPON] = i;
 	}
 
@@ -761,6 +804,34 @@ void CL_ParseClientdata (int bits)
 	i = MSG_ReadByte ();
 	if (cl.stats[STAT_ROUNDCHANGE] != i)
 		cl.stats[STAT_ROUNDCHANGE] = i;
+
+	i = MSG_ReadByte ();
+	if (cl.stats[STAT_X2] != i)
+		cl.stats[STAT_X2] = i;
+
+	i = MSG_ReadByte ();
+	if (cl.stats[STAT_INSTA] != i)
+		cl.stats[STAT_INSTA] = i;
+
+	i = MSG_ReadByte ();
+	if (cl.progress_bar != i)
+		cl.progress_bar = i;
+
+	i = MSG_ReadByte ();
+	if (cl.stats[STAT_WEAPON2] != i)
+		cl.stats[STAT_WEAPON2] = i;
+
+	i = MSG_ReadByte ();
+	if (cl.stats[STAT_WEAPON2SKIN] != i)
+		cl.stats[STAT_WEAPON2SKIN] = i;
+
+	i = MSG_ReadByte ();
+	if (cl.stats[STAT_WEAPON2FRAME] != i)
+		cl.stats[STAT_WEAPON2FRAME] = i;
+
+	i = MSG_ReadByte ();
+	if (cl.stats[STAT_CURRENTMAG2] != i)
+		cl.stats[STAT_CURRENTMAG2] = i;
 }
 
 

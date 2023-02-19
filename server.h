@@ -105,7 +105,10 @@ typedef struct client_s
 	float			spawn_parms[NUM_SPAWN_PARMS];
 
 // client known data for deltas	
-	int				old_frags;
+//	int				old_frags;
+
+	int				old_points;
+	int 			old_kills;
 } client_t;
 
 

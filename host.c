@@ -389,7 +389,8 @@ void SV_DropClient (qboolean crash)
 // free the client (the body stays around)
 	host_client->active = false;
 	host_client->name[0] = 0;
-	host_client->old_frags = -999999;
+	host_client->old_points = -999999;
+	host_client->old_kills = -999999;
 	net_activeconnections--;
 
 // send notification to all clients
@@ -400,6 +401,12 @@ void SV_DropClient (qboolean crash)
 		MSG_WriteByte (&client->message, svc_updatename);
 		MSG_WriteByte (&client->message, host_client - svs.clients);
 		MSG_WriteString (&client->message, "");
+		MSG_WriteByte (&client->message, svc_updatepoints);
+		MSG_WriteByte (&client->message, host_client - svs.clients);
+		MSG_WriteLong (&client->message, 0);
+		MSG_WriteByte (&client->message, svc_updatekills);
+		MSG_WriteByte (&client->message, host_client - svs.clients);
+		MSG_WriteShort (&client->message, 0);
 	}
 }
 

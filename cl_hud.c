@@ -23,9 +23,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 char		sb_round[5][32];
 char		sb_round_num[10][32];
-qpic_t		*sb_moneyback;
-qpic_t		*instapic;
-qpic_t		*x2pic;
+char		*sb_moneyback;
+char		*instapic;
+char		*x2pic;
 char 		*revivepic;
 char		*jugpic;
 char		*floppic;
@@ -89,8 +89,6 @@ HUD_Init
 */
 void HUD_Init (void)
 {
-	int		i;
-
 	strcpy(sb_round[0], "gfx/hud/r1");
 	strcpy(sb_round[1], "gfx/hud/r2");
 	strcpy(sb_round[2], "gfx/hud/r3");
@@ -109,9 +107,9 @@ void HUD_Init (void)
 	strcpy(sb_round_num[8], "gfx/hud/r_num8");
 	strcpy(sb_round_num[9], "gfx/hud/r_num9");
 
-	sb_moneyback = Draw_CachePic ("gfx/hud/moneyback");
-	instapic = Draw_CachePic ("gfx/hud/in_kill");
-	x2pic = Draw_CachePic ("gfx/hud/2x");
+	sb_moneyback = "gfx/hud/moneyback";
+	instapic = "gfx/hud/in_kill";
+	x2pic = "gfx/hud/2x";
 
 	revivepic = "gfx/hud/revive";
 	jugpic = "gfx/hud/jug";
@@ -131,7 +129,6 @@ void HUD_Init (void)
 	b_upbutton = "gfx/butticons/facebt_up";
 
     fx_blood_lu = "gfx/hud/blood";
-    Draw_Pic(0, 0, Draw_CachePic(fx_blood_lu));
     /*fx_blood_lu = "gfx/hud/blood_tl";
     /fx_blood_ru = "gfx/hud/blood_tr";
     fx_blood_ld = "gfx/hud/blood_bl";
@@ -139,6 +136,51 @@ void HUD_Init (void)
 
     // naievil -- fixme
 	//Achievement_Init();
+}
+
+extern char *hitmark;
+
+#define DRAW_CONVERT_CACHE(_picname) Draw_Pic(0, 0, Draw_CachePic(_picname))
+void HUD_CacheData(void)
+{
+	Con_Printf("loading and converting round data...\n");
+	for (int i = 0; i < 5; i++) {
+		DRAW_CONVERT_CACHE(sb_round[i]);
+	}
+
+	for (int i = 0; i < 10; i++) {
+		DRAW_CONVERT_CACHE(sb_round_num[i]);
+	}
+
+	Con_Printf("loading and converting some hud data...\n");
+	DRAW_CONVERT_CACHE(sb_moneyback);
+	DRAW_CONVERT_CACHE(instapic);
+	DRAW_CONVERT_CACHE(x2pic);
+
+	Con_Printf("loading and converting some perk data...\n");
+	DRAW_CONVERT_CACHE(revivepic);
+	DRAW_CONVERT_CACHE(jugpic);
+	DRAW_CONVERT_CACHE(floppic);
+	DRAW_CONVERT_CACHE(staminpic);
+	DRAW_CONVERT_CACHE(doublepic);
+	DRAW_CONVERT_CACHE(speedpic);
+	DRAW_CONVERT_CACHE(deadpic);
+	DRAW_CONVERT_CACHE(mulepic);
+	DRAW_CONVERT_CACHE(fragpic);
+	DRAW_CONVERT_CACHE(bettypic);
+
+	Con_Printf("loading and converting some button data...\n");
+	DRAW_CONVERT_CACHE(b_leftbutton);
+	DRAW_CONVERT_CACHE(b_rightbutton);
+	DRAW_CONVERT_CACHE(b_centerbutton);
+	DRAW_CONVERT_CACHE(b_downbutton);
+	DRAW_CONVERT_CACHE(b_upbutton);
+
+	Con_Printf("loading and converting some blood data...\n");
+	DRAW_CONVERT_CACHE(fx_blood_lu);
+
+	Con_Printf("loading and converting hitmark data...\n");
+	DRAW_CONVERT_CACHE(hitmark);
 }
 
 /*
@@ -169,6 +211,8 @@ void HUD_NewMap (void)
 
 	round_center_x = (vid.width/2 - (Draw_CachePic(sb_round[0])->width)/2);
 	round_center_y = (vid.height/2 - (Draw_CachePic(sb_round[0])->height)/2);
+
+	HUD_CacheData(); // naievil -- this is used to put stuff on cache during a new map
 }
 
 
@@ -385,7 +429,7 @@ void HUD_Points (void)
 				point_change_interval_neg = 0;
 			}
 		}
-		Draw_Pic (x, y, sb_moneyback);
+		Draw_TransPic (x, y, Draw_CachePic(sb_moneyback));
 		xplus = strlen(va("%i", current_points))*8;
 
 		Draw_String (((64 - xplus)/2)+5, y + 3, va("%i", current_points));
@@ -422,9 +466,9 @@ void HUD_Point_Change (void)
 		if (point_change[i].points)
 		{
 			if (point_change[i].negative)
-				Draw_ColoredString (point_change[i].x, point_change[i].y, va ("-%i", point_change[i].points), 255, 0, 0, 255, 1);
+				Draw_ColoredString ((int)point_change[i].x, (int)point_change[i].y, va ("-%i", point_change[i].points), 255, 0, 0, 255, 1);
 			else
-				Draw_ColoredString (point_change[i].x, point_change[i].y, va ("+%i", point_change[i].points), 255, 255, 0, 255, 1);
+				Draw_ColoredString ((int)point_change[i].x, (int)point_change[i].y, va ("+%i", point_change[i].points), 255, 255, 0, 255, 1);
 			point_change[i].y = point_change[i].y + point_change[i].move_y;
 			point_change[i].x = point_change[i].x + point_change[i].move_x;
 			if (point_change[i].alive_time && point_change[i].alive_time < Sys_FloatTime())
@@ -1136,13 +1180,13 @@ void HUD_Powerups (void)
 
 	// both are avail draw fixed order
 	if (count == 2) {
-		Draw_StretchPic((vid.width/2) - 27, 240 - 29, x2pic, 26, 26);
-		Draw_StretchPic((vid.width/2) + 3, 240 - 29, instapic, 26, 26);
+		Draw_TransPic((vid.width/2) - Draw_CachePic(x2pic)->width, vid.height - Draw_CachePic(x2pic)->height, Draw_CachePic(x2pic));
+		Draw_TransPic((vid.width/2) + 3, vid.height - Draw_CachePic(x2pic)->height, Draw_CachePic(instapic));
 	} else {
 		if (cl.stats[STAT_X2])
-			Draw_StretchPic((vid.width/2) - 13, 240 - 29, x2pic, 26, 26);
+			Draw_TransPic((vid.width/2) - 13, vid.height - Draw_CachePic(x2pic)->height, Draw_CachePic(x2pic));
 		if(cl.stats[STAT_INSTA])
-			Draw_StretchPic ((vid.width/2) - 13, 240 - 29, instapic, 28, 28);
+			Draw_TransPic ((vid.width/2) - 13, vid.height - Draw_CachePic(x2pic)->height, Draw_CachePic(instapic));
 	}
 }
 
@@ -1267,9 +1311,9 @@ void HUD_Ammo (void)
 	//
 	magstring = va("%i", cl.stats[STAT_CURRENTMAG]);
 	if (GetLowAmmo(cl.stats[STAT_ACTIVEWEAPON], 1) >= cl.stats[STAT_CURRENTMAG]) {
-		Draw_ColoredString((355-(reslen*8)) - strlen(magstring)*8, 218, magstring, 255, 0, 0, 255, 1);
+		Draw_ColoredString((vid.width-(reslen*8)) - strlen(magstring)*8, 188, magstring, 255, 0, 0, 255, 1);
 	} else {
-		Draw_ColoredString((355-(reslen*8)) - strlen(magstring)*8, 218, magstring, 255, 255, 255, 255, 1);
+		Draw_ColoredString((vid.width-(reslen*8)) - strlen(magstring)*8, 188, magstring, 255, 255, 255, 255, 1);
 	}
 
 	//
@@ -1277,9 +1321,9 @@ void HUD_Ammo (void)
 	//
 	magstring = va("/%i", cl.stats[STAT_AMMO]);
 	if (GetLowAmmo(cl.stats[STAT_ACTIVEWEAPON], 0) >= cl.stats[STAT_AMMO]) {
-		Draw_ColoredString(355 - strlen(magstring)*8, 218, magstring, 255, 0, 0, 255, 1);
+		Draw_ColoredString(vid.width - strlen(magstring)*8, 188, magstring, 255, 0, 0, 255, 1);
 	} else {
-		Draw_ColoredString(355 - strlen(magstring)*8, 218, magstring, 255, 255, 255, 255, 1);
+		Draw_ColoredString(vid.width - strlen(magstring)*8, 188, magstring, 255, 255, 255, 255, 1);
 	}
 }
 
@@ -1318,21 +1362,21 @@ HUD_Grenades
 
 void HUD_Grenades (void)
 {
-	Draw_StretchPic (356, 205, fragpic, 22, 22);
+	Draw_TransPic (vid.width - Draw_CachePic(fragpic)->width, vid.height - Draw_CachePic(fragpic)->height, Draw_CachePic(fragpic));
 	if (cl.stats[STAT_GRENADES] & UI_FRAG)
 	{
 		if (cl.stats[STAT_PRIGRENADES] <= 0)
-			Draw_ColoredString (356 + 12, 205 + 16, va ("%i",cl.stats[STAT_PRIGRENADES]), 255, 0, 0, 255, 1);
+			Draw_ColoredString (vid.width - Draw_CachePic(fragpic)->width/2, vid.height - Draw_CachePic(fragpic)->height / 2, va ("%i",cl.stats[STAT_PRIGRENADES]), 255, 0, 0, 255, 1);
 		else
-			Draw_String (356 + 12, 205 + 16, va ("%i",cl.stats[STAT_PRIGRENADES]));
+			Draw_String (vid.width - Draw_CachePic(fragpic)->width/2, vid.height - Draw_CachePic(fragpic)->height / 2, va ("%i",cl.stats[STAT_PRIGRENADES]));
 	}
 	if (cl.stats[STAT_GRENADES] & UI_BETTY)
 	{
-		Draw_StretchPic (356 + 20, 205, bettypic, 22, 22);
+		Draw_StretchPic (vid.width - (2 * Draw_CachePic(fragpic)->width) - 4, vid.height - (2 * Draw_CachePic(fragpic)->height), Draw_CachePic(bettypic), 22, 22);
 		if (cl.stats[STAT_PRIGRENADES] <= 0)
-			Draw_ColoredString (356 + 20 + 12, 205 + 16, va ("%i",cl.stats[STAT_SECGRENADES]), 255, 0, 0, 255, 1);
+			Draw_ColoredString (vid.width - (1.5 * Draw_CachePic(fragpic)->width) - 4, vid.height - (1.5 * Draw_CachePic(fragpic)->height), va ("%i",cl.stats[STAT_SECGRENADES]), 255, 0, 0, 255, 1);
 		else
-			Draw_String (356 + 20 + 12, 205 + 16, va ("%i",cl.stats[STAT_SECGRENADES]));
+			Draw_String (vid.width - (1.5 * Draw_CachePic(fragpic)->width) - 4, vid.height - (1.5 * Draw_CachePic(fragpic)->height), va ("%i",cl.stats[STAT_SECGRENADES]));
 	}
 }
 
@@ -1346,12 +1390,12 @@ void HUD_Weapon (void)
 	char str[32];
 	float l;
 	x_value = vid.width;
-	y_value = 205;
+	y_value = 180;
 
 	strcpy(str, pr_strings+sv_player->v.Weapon_Name);
 	l = strlen(str);
 
-	x_value = 355 - l*8;
+	x_value = vid.width - l*8;
 	Draw_String (x_value, y_value, str);
 }
 
@@ -1371,17 +1415,17 @@ void HUD_Draw (void)
 	scr_copyeverything = 1;
 
 
-	// if (waypoint_mode.value)
-	// {
-	// 	Draw_String (vid.width - 112, 0, "WAYPOINTMODE");
-	// 	Draw_String (vid.width - 240, 8, "Press fire to create waypoint");
-	// 	Draw_String (vid.width - 232, 16, "Press use to select waypoint");
-	// 	Draw_String (vid.width - 216, 24, "Press aim to link waypoint");
-	// 	Draw_String (vid.width - 248, 32, "Press knife to remove waypoint");
-	// 	Draw_String (vid.width - 272, 40, "Press switch to move waypoint here");
-	// 	Draw_String (vid.width - 304, 48, "Press reload to make special waypoint");
-	// 	return;
-	// }
+	if (waypoint_mode.value)
+	{
+		Draw_String (vid.width - 112, 0, "WAYPOINTMODE");
+		Draw_String (vid.width - 240, 8, "Press fire to create waypoint");
+		Draw_String (vid.width - 232, 16, "Press use to select waypoint");
+		Draw_String (vid.width - 216, 24, "Press aim to link waypoint");
+		Draw_String (vid.width - 248, 32, "Press knife to remove waypoint");
+		Draw_String (vid.width - 272, 40, "Press switch to move waypoint here");
+		Draw_String (vid.width - 304, 48, "Press reload to make special waypoint");
+		return;
+	}
 
 
 	if (cl.stats[STAT_HEALTH] <= 0)
@@ -1391,7 +1435,6 @@ void HUD_Draw (void)
 	}
 	HUD_Blood();
 	HUD_Rounds();
-#if 0
 	HUD_Perks();
 	HUD_Powerups();
 	HUD_ProgressBar();
@@ -1414,5 +1457,4 @@ void HUD_Draw (void)
 		}
 		HUD_MaxAmmo();
 	}
-#endif
 }
