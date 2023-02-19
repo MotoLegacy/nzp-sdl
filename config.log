@@ -622,7 +622,7 @@ conftest.c:70:6: warning: conflicting types for built-in function 'floor'; expec
 conftest.c:58:1: note: 'floor' is declared in header '<math.h>'
    57 | # include <limits.h>
    58 | #else
-/usr/bin/ld: /tmp/ccmRdGLZ.o: in function `main':
+/usr/bin/ld: /tmp/ccI01T1o.o: in function `main':
 /home/ryan/Desktop/nzp-sdl/conftest.c:81: undefined reference to `floor'
 collect2: error: ld returned 1 exit status
 configure:5535: $? = 1
@@ -726,7 +726,7 @@ configure:5535: $? = 0
 configure:5535: result: yes
 configure:5535: checking for gethrtime
 configure:5535: gcc -o conftest -g -O2   conftest.c  >&5
-/usr/bin/ld: /tmp/ccPLi0dE.o: in function `main':
+/usr/bin/ld: /tmp/ccxayLF3.o: in function `main':
 /home/ryan/Desktop/nzp-sdl/conftest.c:84: undefined reference to `gethrtime'
 collect2: error: ld returned 1 exit status
 configure:5535: $? = 1
@@ -855,7 +855,7 @@ conftest.c:79:6: warning: conflicting types for built-in function 'pow'; expecte
 conftest.c:67:1: note: 'pow' is declared in header '<math.h>'
    66 | # include <limits.h>
    67 | #else
-/usr/bin/ld: /tmp/cclswKC6.o: in function `main':
+/usr/bin/ld: /tmp/ccEvLI3u.o: in function `main':
 /home/ryan/Desktop/nzp-sdl/conftest.c:90: undefined reference to `pow'
 collect2: error: ld returned 1 exit status
 configure:5535: $? = 1
@@ -970,7 +970,7 @@ conftest.c:81:6: warning: conflicting types for built-in function 'sqrt'; expect
 conftest.c:69:1: note: 'sqrt' is declared in header '<math.h>'
    68 | # include <limits.h>
    69 | #else
-/usr/bin/ld: /tmp/cc5M80ml.o: in function `main':
+/usr/bin/ld: /tmp/ccPO8TNI.o: in function `main':
 /home/ryan/Desktop/nzp-sdl/conftest.c:92: undefined reference to `sqrt'
 collect2: error: ld returned 1 exit status
 configure:5535: $? = 1
@@ -1129,6 +1129,7 @@ on ryan-LT
 
 config.status:913: creating Makefile
 config.status:913: creating config.h
+config.status:1094: config.h is unchanged
 config.status:1142: executing depfiles commands
 config.status:1219: cd .       && sed -e '/# am--include-marker/d' Makefile         | make -f - am--depfiles
 make: Nothing to be done for 'am--depfiles'.

@@ -419,7 +419,7 @@ Draw_ColorPic
 */
 void Draw_ColorPic (int x, int y, qpic_t *pic, float r, float g , float b, float a)
 {
-	Draw_Pic(x, y, pic);
+	Draw_TransPic(x, y, pic);
 }
 
 /*

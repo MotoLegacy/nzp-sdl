@@ -659,8 +659,8 @@ void SV_WriteClientdataToMessage (edict_t *ent, sizebuf_t *msg)
 	MSG_WriteByte (msg, ent->v.currentammo);
 
 	MSG_WriteByte (msg, ent->v.weapon);
-	//MSG_WriteByte (msg, pr_global_struct->rounds);
-	//MSG_WriteByte (msg, pr_global_struct->rounds_change);
+	MSG_WriteByte (msg, pr_global_struct->rounds);
+	MSG_WriteByte (msg, pr_global_struct->rounds_change);
 
 }
 

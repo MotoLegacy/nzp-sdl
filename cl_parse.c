@@ -322,7 +322,8 @@ void CL_ParseServerInfo (void)
 	R_NewMap ();
 
 	Hunk_Check ();		// make sure nothing is hurt
-	
+	HUD_NewMap ();
+
 	noclip_anglehack = false;		// noclip is turned off at start	
 }
 
@@ -748,21 +749,18 @@ void CL_ParseClientdata (int bits)
 	}
 
 	i = MSG_ReadByte ();
+	if (cl.stats[STAT_ACTIVEWEAPON] != i)
+	{
+		cl.stats[STAT_ACTIVEWEAPON] = i;
+	}
 
-	if (standard_quake)
-	{
-		if (cl.stats[STAT_ACTIVEWEAPON] != i)
-		{
-			cl.stats[STAT_ACTIVEWEAPON] = i;
-		}
-	}
-	else
-	{
-		if (cl.stats[STAT_ACTIVEWEAPON] != (1<<i))
-		{
-			cl.stats[STAT_ACTIVEWEAPON] = (1<<i);
-		}
-	}
+	i = MSG_ReadByte ();
+	if (cl.stats[STAT_ROUNDS] != i)
+		cl.stats[STAT_ROUNDS] = i;
+
+	i = MSG_ReadByte ();
+	if (cl.stats[STAT_ROUNDCHANGE] != i)
+		cl.stats[STAT_ROUNDCHANGE] = i;
 }
 
 
