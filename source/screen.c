@@ -435,7 +435,9 @@ void SCR_DrawUseString (void)
 
     	Draw_String (x, y, scr_usestring);
 	Draw_String (x2, y + 10, scr_usestring2);
-	Draw_TransPic (x + button_pic_x*8, y, Draw_CachePic(GetButtonIcon("+use")));
+
+	if (button_pic_x != 0 && button_pic_x != 100)
+		Draw_TransPic (x + button_pic_x*8, y, Draw_CachePic(GetButtonIcon("+use")));
 }
 
 void SCR_CheckDrawUseString (void)
