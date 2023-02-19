@@ -844,7 +844,7 @@ V_BoundOffsets
 void V_BoundOffsets (void)
 {
 	entity_t	*ent;
-	
+
 	ent = &cl_entities[cl.viewentity];
 
 // absolutely bound refresh reletive to entity clipping hull
@@ -860,8 +860,8 @@ void V_BoundOffsets (void)
 		r_refdef.vieworg[1] = ent->origin[1] + 14;
 	if (r_refdef.vieworg[2] < ent->origin[2] - 22)
 		r_refdef.vieworg[2] = ent->origin[2] - 22;
-	else if (r_refdef.vieworg[2] > ent->origin[2] + 30)
-		r_refdef.vieworg[2] = ent->origin[2] + 30;
+	else if (r_refdef.vieworg[2] > ent->origin[2] + 32)
+		r_refdef.vieworg[2] = ent->origin[2] + 32;
 }
 
 /*
