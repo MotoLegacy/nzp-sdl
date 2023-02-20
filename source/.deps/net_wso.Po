@@ -1,2 +1,3 @@
 ../source/net_wso.o: ../source/net_wso.c /usr/include/stdc-predef.h
+
 /usr/include/stdc-predef.h:

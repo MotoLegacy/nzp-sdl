@@ -409,7 +409,6 @@ float VecLength2(vec3_t v1, vec3_t v2)
 
 float VectorNormalize (vec3_t v)
 {
-#ifndef OPT_FASTVECTORNORM
 	float	length, ilength;
 
 	length = v[0]*v[0] + v[1]*v[1] + v[2]*v[2];
@@ -424,18 +423,7 @@ float VectorNormalize (vec3_t v)
 	}
 
 	return length;
-#else
-	//johnfitz -- courtesy of lordhavoc
-	float y, number;
-	number = DotProduct(v, v);
-	if (number != 0.0)
-	{
-		*((int *)&y) = 0x5f3759df - ((* (int *) &number) >> 1);
-		y = y * (1.5f - (number * 0.5f * y * y));
-		VectorScale(v, y, v);
-	}
-	return number;
-#endif // OPT_FASTVECTORNORM
+
 }
 
 void VectorInverse (vec3_t v)

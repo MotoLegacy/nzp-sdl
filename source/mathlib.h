@@ -116,6 +116,20 @@ static inline void VectorNormalizeNoRet (vec3_t v)
         v[2] *= ilength;
 }
 
+
+//johnfitz -- courtesy of lordhavoc
+#define VectorNormalizeFast(_v)\
+{\
+	float _y, _number;\
+	_number = DotProduct(_v, _v);\
+	if (_number != 0.0)\
+	{\
+		*((int *)&_y) = 0x5f3759df - ((* (int *) &_number) >> 1);\
+		_y = _y * (1.5f - (_number * 0.5f * _y * _y));\
+		VectorScale(_v, _y, _v);\
+	}\
+}
+
 // kristian - missing math functions
 /*#if !defined(max)
 inline int max (int x, int y);
