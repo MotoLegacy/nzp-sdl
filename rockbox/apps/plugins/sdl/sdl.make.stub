@@ -1,0 +1,36 @@
+NZP_SRC := $(call preprocess, $(SDL_SRCDIR)/SOURCES.nzp)
+
+NZP_OBJ = $(call c2obj, $(NZP_SRC))
+
+ifndef APP_TYPE
+    ### no target has a big enough plugin buffer
+    ROCKS += $(SDL_OBJDIR)/nzp.ovl
+
+    NZP_OUTLDS = $(SDL_OBJDIR)/nzp.link
+else
+    ### simulator
+    ROCKS += $(SDL_OBJDIR)/nzp.rock
+endif
+
+
+###
+
+# NZP
+###
+
+$(SDL_OBJDIR)/nzp.rock: $(SDL_OBJ) $(NZP_OBJ) $(TLSFLIB)
+
+$(SDL_OBJDIR)/nzp.refmap: $(SDL_OBJ) $(NZP_OBJ) $(TLSFLIB)
+
+$(NZP_OUTLDS): $(PLUGIN_LDS) $(SDL_OBJDIR)/nzp.refmap
+	$(call PRINTS,PP $(@F))$(call preprocess2file,$<,$@,-DOVERLAY_OFFSET=$(shell \
+		$(TOOLSDIR)/ovl_offset.pl $(SDL_OBJDIR)/nzp.refmap))
+
+$(SDL_OBJDIR)/nzp.ovl: $(SDL_OBJ) $(NZP_OBJ) $(TLSFLIB) $(NZP_OUTLDS)
+	$(SILENT)$(CC) -D __ROCKBOX__ $(PLUGINFLAGS) -o $(basename $@).elf \
+		$(filter %.o, $^) \
+		$(filter %.a, $+) \
+		-lgcc -T$(NZP_OUTLDS) $(SDL_OVLFLAGS)
+	$(call PRINTS,LD $(@F))$(call objcopy,$(basename $@).elf,$@)
+
+###

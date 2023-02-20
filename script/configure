@@ -776,7 +776,7 @@ program_suffix=NONE
 program_transform_name=s,x,x,
 silent=
 site=
-srcdir=./
+srcdir=
 verbose=
 x_includes=NONE
 x_libraries=NONE
@@ -5581,13 +5581,13 @@ case $host in #(
   alpha*-*-linux*) :
     CFLAGS="$CFLAGS -mcpu=ev4 -Wa,-mall" ;; #(
   x86_64-*-linux*) :
-    CFLAGS="$CFLAGS -ffast-math -funroll-loops -fomit-frame-pointer -fexpensive-optimizations" ;; #(
+    CFLAGS="$CFLAGS -D __LINUX__ -ffast-math -funroll-loops -fomit-frame-pointer -fexpensive-optimizations" ;; #(
   x86_64-*-mingw32*) :
     CFLAGS="$CFLAGS -ffast-math -funroll-loops -fomit-frame-pointer -fexpensive-optimizations" ;; #(
   *-apple-*) :
     CFLAGS="$CFLAGS -ffast-math -funroll-loops -fomit-frame-pointer" ;; #(
   *-linux*) :
-    CFLAGS="$CFLAGS -ffast-math -funroll-loops -fomit-frame-pointer -fexpensive-optimizations" ;; #(
+    CFLAGS="$CFLAGS -D __LINUX__ -ffast-math -funroll-loops -fomit-frame-pointer -fexpensive-optimizations" ;; #(
   *) :
     as_fn_error $? "\"Unrecognized platform $host.\"" "$LINENO" 5 ;;
 esac

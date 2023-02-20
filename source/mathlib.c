@@ -33,6 +33,8 @@ void Sys_Error (char *error, ...);
 vec3_t vec3_origin = {0,0,0};
 int nanmask = 255<<23;
 
+double sqrt(double x);
+
 /*-----------------------------------------------------------------*/
 
 
@@ -383,8 +385,6 @@ void CrossProduct (vec3_t v1, vec3_t v2, vec3_t cross)
 	cross[1] = v1[2]*v2[0] - v1[0]*v2[2];
 	cross[2] = v1[0]*v2[1] - v1[1]*v2[0];
 }
-
-double sqrt(double x);
 
 vec_t Length(vec3_t v)
 {

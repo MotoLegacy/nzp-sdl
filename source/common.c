@@ -438,7 +438,7 @@ float Q_atof (const char *str)
 
 void Q_strncpyz (char *dest, char *src, size_t size)
 {
-	strncpy (dest, src, size - 1);
+	Q_strncpy(dest, src, size);
 	dest[size-1] = 0;
 }
 

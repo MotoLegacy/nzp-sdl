@@ -19,6 +19,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // quakedef.h -- primary header for client
 
+#define EOF 	-1
+
 #define qtrue 1
 #define qfalse 0
 
@@ -267,7 +269,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	MAX_SCOREBOARD		16
 #define	MAX_SCOREBOARDNAME	32
 
-#define	SOUND_CHANNELS		8
+//#define	SOUND_CHANNELS		8 // naievil -- rockbox dislikes this
 
 // This makes anyone on id's net privileged
 // Use for multiplayer testing only - VERY dangerous!!!
@@ -300,7 +302,12 @@ typedef struct
 #include "protocol.h"
 #include "cmd.h"
 #include "sbar.h"
+#if __LINUX__
 #include "sound.h"
+#else 
+// rockbox
+#include "quakesound.h"
+#endif
 #include "render.h"
 #include "client.h"
 #include "progs.h"
@@ -320,6 +327,9 @@ typedef struct
 
 #include "cl_hud.h"
 
+#if !__LINUX__
+#include "plugin.h" // rockbox plugin
+#endif
 
 //=============================================================================
 

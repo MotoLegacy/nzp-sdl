@@ -1,7 +1,8 @@
 // vid_sdl.h -- sdl video driver 
 
-#include "SDL.h"
 #include "quakedef.h"
+
+#include "SDL.h"
 #include "d_local.h"
 
 extern viddef_t    vid;                // global video state
