@@ -43,6 +43,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define USE_PQ_OPT5
 #endif
 
+// how many zombies are allowed to draw limbs separately?
+#define ZOMBIE_RENDER_GIB_COUNT 	2
 
 #undef VERSION
 #define	VERSION				1.09

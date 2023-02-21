@@ -702,12 +702,30 @@ void R_AliasSetupFrame (void)
 				((byte *)paliashdr + paliasgroup->frames[i].frame);
 }
 
+void R_DrawZombieLimb(entity_t *e,int which, alight_t *plighting)
+{
+	entity_t* old_currententity = currententity;
+
+	switch(which) {
+		case 1: currententity = &cl_entities[e->z_head]; break;
+		case 2: currententity = &cl_entities[e->z_larm]; break;
+		case 3: currententity = &cl_entities[e->z_rarm]; break;
+		default: break;
+	}
+
+	R_AliasDrawModel(plighting);
+	//currententity = old_currententity;
+}
 
 /*
 ================
 R_AliasDrawModel
 ================
 */
+int doZHack;
+
+extern model_t *Mod_FindName (char *name);
+
 void R_AliasDrawModel (alight_t *plighting)
 {
 	finalvert_t		finalverts[MAXALIASVERTS +
@@ -728,7 +746,22 @@ void R_AliasDrawModel (alight_t *plighting)
 			(((long)&finalverts[0] + CACHE_SIZE - 1) & ~(CACHE_SIZE - 1));
 	pauxverts = &auxverts[0];
 
-	paliashdr = (aliashdr_t *)Mod_Extradata (currententity->model);
+//
+// locate the proper data
+//
+	if(doZHack && specChar == '%')
+	{
+		model_t		*clmodel;
+		clmodel = currententity->model;
+
+		if(clmodel->name[strlen(clmodel->name) - 6] == 'c')
+			paliashdr = (aliashdr_t *) Mod_Extradata(Mod_FindName("models/ai/zcfull.mdl"));
+		else
+			paliashdr = (aliashdr_t *) Mod_Extradata(Mod_FindName("models/ai/zfull.mdl"));
+	}
+	else
+		paliashdr = (aliashdr_t *)Mod_Extradata (currententity->model);
+
 	pmdl = (mdl_t *)((byte *)paliashdr + paliashdr->model);
 
 	R_AliasSetupSkin ();

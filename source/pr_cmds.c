@@ -3214,11 +3214,11 @@ void PF_updateLimb (void)
 
 	zombieent = G_EDICTNUM(OFS_PARM0);
 	limb = G_FLOAT(OFS_PARM1);
-	limbent = G_EDICTNUM(OFS_PARM2);/*
+	limbent = G_EDICTNUM(OFS_PARM2);
 	MSG_WriteByte (&sv.reliable_datagram,   svc_limbupdate);
 	MSG_WriteByte (&sv.reliable_datagram,  limb);
 	MSG_WriteShort (&sv.reliable_datagram,  zombieent);
-	MSG_WriteShort (&sv.reliable_datagram,  limbent);*/
+	MSG_WriteShort (&sv.reliable_datagram,  limbent);
 }
 
 /*

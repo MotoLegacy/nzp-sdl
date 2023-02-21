@@ -553,6 +553,7 @@ void R_MarkLeaves (void)
 R_DrawEntitiesOnList
 =============
 */
+extern int doZHack;
 void R_DrawEntitiesOnList (void)
 {
 	int			i, j;
@@ -566,12 +567,35 @@ void R_DrawEntitiesOnList (void)
 	if (!r_drawentities.value)
 		return;
 
+	int zHackCount = 0;
+	doZHack = 0;
+	char specChar;
+
 	for (i=0 ; i<cl_numvisedicts ; i++)
 	{
 		currententity = cl_visedicts[i];
 
 		if (currententity == &cl_entities[cl.viewentity])
 			continue;	// don't draw the player
+
+		specChar = currententity->model->name[strlen(currententity->model->name)-5];
+		
+		if(specChar == '(' || specChar == '^')//skip heads and arms: it's faster to do this than a strcmp...
+		{
+			continue;
+		}
+		doZHack = 0;
+		if(specChar == '%')
+		{
+			if(zHackCount > ZOMBIE_RENDER_GIB_COUNT || ((currententity->z_head != 0) && (currententity->z_larm != 0) && (currententity->z_rarm != 0)))
+			{
+				doZHack = 1;
+			}
+			else
+			{
+				zHackCount ++;//drawing zombie piece by piece.
+			}
+		}
 
 		switch (currententity->model->type)
 		{
@@ -617,6 +641,17 @@ void R_DrawEntitiesOnList (void)
 					lighting.shadelight = 192 - lighting.ambientlight;
 
 				R_AliasDrawModel (&lighting);
+
+				//if we're drawing zombie, also draw its limbs if applicable
+				if (doZHack == 0 && specChar == '%')
+				{
+					if(currententity->z_head)
+						R_DrawZombieLimb(currententity,1, &lighting);
+					if(currententity->z_larm)
+						R_DrawZombieLimb(currententity,2, &lighting);
+					if(currententity->z_rarm)
+						R_DrawZombieLimb(currententity,3, &lighting);
+				}
 			}
 
 			break;
@@ -624,6 +659,7 @@ void R_DrawEntitiesOnList (void)
 		default:
 			break;
 		}
+		doZHack = 0;
 	}
 }
 
