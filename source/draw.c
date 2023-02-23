@@ -74,13 +74,14 @@ Draw_CachePicColorOverride
 */
 #define PAL_STANDARD		0
 #define PAL_WHITETORED		1
+#define PAL_WHITETOYELLOW	2
 // you've never seen a hack this bad!
 // this is basically a duplicate of Draw_CachePic
 // but i was super lazy and didnt wanna go editing
 // all references to it to add this extra parm.
 // basically it switches over color_hack to decide
 // whether or not to manipulate the color values
-byte convert_white_to_red(byte color_index)
+inline byte convert_white_to_red(byte color_index)
 {
 	// keep transparency
 	if (color_index == 255)
@@ -105,6 +106,46 @@ byte convert_white_to_red(byte color_index)
 		case 5: return 226;
 		case 4: return 225;
 		case 3: return 225;
+		// this is technically gray/black but oh well!
+		case 2: return 224;
+		case 1: return 224;
+		case 0: return 224;
+		// nzp's text shadow also likes to use 185 so..
+		case 185: return 224;
+	}
+
+	return color_index;
+}
+
+inline byte convert_white_to_yellow(byte color_index)
+{
+	// keep transparency
+	if (color_index == 255)
+		return color_index;
+
+	// quake has a nice full selection of yellows!
+	// we could probably compute this, but a hashmao seems
+	// faster.
+	switch(color_index) {
+		case 254: return 253;
+		case 15: return 192;
+		case 14: return 193;
+		case 13: return 194;
+		case 12: return 195;
+		case 11: return 196;
+		case 10: return 197;
+		case 9: return 198;
+		case 8: return 199;
+		case 7: return 200;
+		case 6: return 201;
+		case 5: return 202;
+		case 4: return 203;
+		case 3: return 204;
+		case 2: return 205;
+		case 1: return 206;
+		case 0: return 207;
+		// nzp's text shadow also likes to use 185 so..
+		case 185: return 204;
 	}
 
 	return color_index;
@@ -163,6 +204,7 @@ qpic_t *Draw_CachePicColorOverride(char *path, unsigned short color_hack)
 
 			switch(color_hack) {
 				case PAL_WHITETORED: converted_pixels[converted_counter] = convert_white_to_red(converted_pixels[converted_counter]); break;
+				case PAL_WHITETOYELLOW: converted_pixels[converted_counter] = convert_white_to_yellow(converted_pixels[converted_counter]); break;
 				default: break;
 			}
 
@@ -301,6 +343,90 @@ It can be clipped to the top of the screen to allow the console to be
 smoothly scrolled off.
 ================
 */
+void Draw_CharacterPaletted(int x, int y, int num, unsigned short color_hack) {
+	byte			*dest;
+	byte			*source;
+	unsigned short	*pusdest;
+	int				drawline;	
+	int				row, col;
+
+	num &= 255;
+	
+	if (y <= -8)
+		return;			// totally off screen
+
+#ifdef PARANOID
+	if (y > vid.height - 8 || x < 0 || x > vid.width - 8)
+		Sys_Error ("Con_DrawCharacter: (%i, %i)", x, y);
+	if (num < 0 || num > 255)
+		Sys_Error ("Con_DrawCharacter: char %i", num);
+#endif
+
+	row = num>>4;
+	col = num&15;
+	source = draw_chars + (row<<10) + (col<<3);
+
+	if (y < 0)
+	{	// clipped
+		drawline = 8 + y;
+		source -= 128*y;
+		y = 0;
+	}
+	else
+		drawline = 8;
+
+
+	if (r_pixbytes == 1)
+	{
+		dest = vid.conbuffer + y*vid.conrowbytes + x;
+	
+		while (drawline--)
+		{
+			// "Modern" (not 1996) GCC makes this almost as-fast
+			for(int i = 0; i < 8; i++) {
+				if (source[i]) {
+					switch(color_hack) {
+						case PAL_WHITETORED:
+							dest[i] = convert_white_to_red(source[i]); break;
+						case PAL_WHITETOYELLOW:
+							dest[i] = convert_white_to_yellow(source[i]); break;
+						default: break;
+					}
+				}
+					
+			}
+
+			source += 128;
+			dest += vid.conrowbytes;
+		}
+	}
+	else
+	{
+	// FIXME: pre-expand to native format?
+		pusdest = (unsigned short *)
+				((byte *)vid.conbuffer + y*vid.conrowbytes + (x<<1));
+
+		while (drawline--)
+		{
+			// "Modern" (not 1996) GCC makes this almost as-fast
+			for(int i = 0; i < 8; i++) {
+				if (source[i]) {
+					switch(color_hack) {
+						case PAL_WHITETORED:
+							pusdest[i] = d_8to16table[convert_white_to_red(source[i])];
+						case PAL_WHITETOYELLOW:
+							pusdest[i] = d_8to16table[convert_white_to_yellow(source[i])];
+						default: break;
+					}
+				}		
+			}
+
+			source += 128;
+			pusdest += (vid.conrowbytes >> 1);
+		}
+	}
+}
+
 void Draw_Character (int x, int y, int num)
 {
 	byte			*dest;
@@ -341,22 +467,12 @@ void Draw_Character (int x, int y, int num)
 	
 		while (drawline--)
 		{
-			if (source[0])
-				dest[0] = source[0];
-			if (source[1])
-				dest[1] = source[1];
-			if (source[2])
-				dest[2] = source[2];
-			if (source[3])
-				dest[3] = source[3];
-			if (source[4])
-				dest[4] = source[4];
-			if (source[5])
-				dest[5] = source[5];
-			if (source[6])
-				dest[6] = source[6];
-			if (source[7])
-				dest[7] = source[7];
+			// "Modern" (not 1996) GCC makes this almost as-fast
+			for(int i = 0; i < 8; i++) {
+				if (source[i])
+					dest[i] = source[i];
+			}
+
 			source += 128;
 			dest += vid.conrowbytes;
 		}
@@ -369,22 +485,11 @@ void Draw_Character (int x, int y, int num)
 
 		while (drawline--)
 		{
-			if (source[0])
-				pusdest[0] = d_8to16table[source[0]];
-			if (source[1])
-				pusdest[1] = d_8to16table[source[1]];
-			if (source[2])
-				pusdest[2] = d_8to16table[source[2]];
-			if (source[3])
-				pusdest[3] = d_8to16table[source[3]];
-			if (source[4])
-				pusdest[4] = d_8to16table[source[4]];
-			if (source[5])
-				pusdest[5] = d_8to16table[source[5]];
-			if (source[6])
-				pusdest[6] = d_8to16table[source[6]];
-			if (source[7])
-				pusdest[7] = d_8to16table[source[7]];
+			// "Modern" (not 1996) GCC makes this almost as-fast
+			for(int i = 0; i < 8; i++) {
+				if (source[i])
+					pusdest[i] = d_8to16table[source[i]];
+			}
 
 			source += 128;
 			pusdest += (vid.conrowbytes >> 1);
@@ -404,6 +509,16 @@ void Draw_CharacterRGBA(int x, int y, int num, float r, float g, float b, float 
 Draw_String
 ================
 */
+void Draw_StringPaletted(int x, int y, char *str, unsigned short color_hack)
+{
+	while (*str)
+	{
+		Draw_CharacterPaletted(x, y, *str, color_hack);
+		str++;
+		x += 8;
+	}
+}
+
 void Draw_String (int x, int y, char *str)
 {
 	while (*str)
