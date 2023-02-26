@@ -29,6 +29,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //
 // MACRO FEATURE TOGGLING
 //
+#define OPT_FASTVECTORNORM	// motolegacy -- utilizes  quake3's rsqrt for faster VectorNormalize
 #define OPT_STATICLIGHT 	// motolegacy -- use a static light level for models
 #define OPT_NOLIGHTSTYLES	// motolegacy -- disable use of lightstyles, always on
 #define OPT_WORSEHUNKDEBUG	// motolegacy -- removes 'name' from hunk and cache, useful for low memory systems.
@@ -44,6 +45,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define USE_PQ_OPT5
 #endif
 
+// how many zombies are allowed to draw limbs separately?
+#define ZOMBIE_RENDER_GIB_COUNT 	2
 
 #undef VERSION
 #define	VERSION				1.09
@@ -67,13 +70,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <stdint.h>
 #include <setjmp.h>
 #include <stdbool.h>
+#include <ctype.h>
 #else 
 #include "SDL.h"
 #include <stdarg.h>
 #include <setjmp.h>
 #include "rockboxdef.h"
 #endif
-
 
 #if id386
 #define UNALIGNED_OK	1	// set to 0 if unaligned accesses are not supported

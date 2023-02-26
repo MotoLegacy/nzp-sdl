@@ -501,6 +501,7 @@ void CL_SendMove (usercmd_t *cmd)
 	int		bits;
 	sizebuf_t	buf;
 	byte	data[128];
+	vec3_t tempv;
 	
 	buf.maxsize = 128;
 	buf.cursize = 0;
@@ -550,8 +551,9 @@ void CL_SendMove (usercmd_t *cmd)
 
 	MSG_WriteFloat (&buf, cl.mtime[0]);	// so server can get ping times
 
+	VectorAdd(cl.gun_kick, cl.viewangles, tempv);
 	for (i=0 ; i<3 ; i++)
-		MSG_WriteAngle (&buf, cl.viewangles[i]);
+		MSG_WriteAngle (&buf, tempv[i]);
 	
     MSG_WriteShort (&buf, cmd->forwardmove);
     MSG_WriteShort (&buf, cmd->sidemove);

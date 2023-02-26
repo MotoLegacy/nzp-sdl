@@ -44,10 +44,12 @@ char 		*b_centerbutton;
 char 		*b_downbutton;
 char  		*b_upbutton;
 
+#ifdef GFX_GOOD_BLOOD
 char      *fx_blood_lu;
 char      *fx_blood_ru;
 char      *fx_blood_ld;
 char      *fx_blood_rd;
+#endif // GFX_GOOD_BLOOD
 
 qboolean	sb_showscores;
 qboolean 	domaxammo;
@@ -69,8 +71,6 @@ int alphabling = 0;
 float round_center_x;
 float round_center_y;
 
-char* sb_round_0;
-
 typedef struct
 {
 	int points;
@@ -91,7 +91,6 @@ HUD_Init
 */
 void HUD_Init (void)
 {
-	sb_round_0 = "gfx/hud/r1";
 	strcpy(sb_round[0], "gfx/hud/r1");
 	strcpy(sb_round[1], "gfx/hud/r2");
 	strcpy(sb_round[2], "gfx/hud/r3");
@@ -131,11 +130,9 @@ void HUD_Init (void)
 	b_downbutton = "gfx/butticons/facebt_down";
 	b_upbutton = "gfx/butticons/facebt_up";
 
+#ifdef GFX_GOOD_BLOOD
     fx_blood_lu = "gfx/hud/blood";
-    /*fx_blood_lu = "gfx/hud/blood_tl";
-    /fx_blood_ru = "gfx/hud/blood_tr";
-    fx_blood_ld = "gfx/hud/blood_bl";
-    fx_blood_rd = "gfx/hud/blood_br";*/
+#endif // GFX_GOOD_BLOOD
 
     // naievil -- fixme
 	//Achievement_Init();
@@ -145,6 +142,7 @@ extern char *hitmark;
 
 #define PAL_STANDARD		0
 #define PAL_WHITETORED 		1
+#define PAL_WHITETOYELLOW	2
 
 #define DRAW_CONVERT_CACHE(_picname, forcecol)							\
 ({																		\
@@ -189,8 +187,10 @@ void HUD_CacheData(void)
 	DRAW_CONVERT_CACHE(b_downbutton, PAL_STANDARD);
 	DRAW_CONVERT_CACHE(b_upbutton, PAL_STANDARD);
 
+#ifdef GFX_GOOD_BLOOD
 	Con_Printf("loading and converting some blood data...\n");
 	DRAW_CONVERT_CACHE(fx_blood_lu, PAL_STANDARD);
+#endif // GFX_GOOD_BLOOD
 
 	Con_Printf("loading and converting hitmark data...\n");
 	DRAW_CONVERT_CACHE(hitmark, PAL_STANDARD);
@@ -323,10 +323,10 @@ void HUD_EndScreen (void)
 
 	l = scoreboardlines;
 
-	Draw_ColoredString((vid.width - 9*8)/2, 40, "GAME OVER", 255, 0, 0, 255, 1);
+	Draw_String((vid.width - 9*8)/2, 40, "GAME OVER");
 
 	sprintf (str,"You survived %3i rounds", cl.stats[STAT_ROUNDS]);
-	Draw_String ((vid.width - strlen (str)*8)/2, 52, str);
+	Draw_String((vid.width - strlen (str)*8)/2, 52, str);
 
 	sprintf (str,"Name           Kills     Points");
 	x = (vid.width - strlen (str)*8)/2;
@@ -481,9 +481,9 @@ void HUD_Point_Change (void)
 		if (point_change[i].points)
 		{
 			if (point_change[i].negative)
-				Draw_ColoredString ((int)point_change[i].x, (int)point_change[i].y, va ("-%i", point_change[i].points), 255, 0, 0, 255, 1);
+				Draw_StringPaletted((int)point_change[i].x, (int)point_change[i].y, va ("-%i", point_change[i].points), PAL_WHITETORED);
 			else
-				Draw_ColoredString ((int)point_change[i].x, (int)point_change[i].y, va ("+%i", point_change[i].points), 255, 255, 0, 255, 1);
+				Draw_StringPaletted((int)point_change[i].x, (int)point_change[i].y, va ("+%i", point_change[i].points), PAL_WHITETOYELLOW);
 			point_change[i].y = point_change[i].y + point_change[i].move_y;
 			point_change[i].x = point_change[i].x + point_change[i].move_x;
 			if (point_change[i].alive_time && point_change[i].alive_time < Sys_FloatTime())
@@ -508,7 +508,8 @@ HUD_Blood
 */
 void HUD_Blood (void)
 {
-    float alpha;
+#ifdef GFX_GOOD_BLOOD
+	float alpha;
 	//blubswillrule:
 	//this function scales linearly from health = 0 to health = 100
 	//alpha = (100.0 - (float)cl.stats[STAT_HEALTH])/100*255;
@@ -530,10 +531,28 @@ void HUD_Blood (void)
     float color = 255.0 + modifier;
     
     Draw_TransPic(0,0,Draw_CachePic(fx_blood_lu));
-    //Draw_ColorPic (0, 0, fx_blood_lu, 82, 6, 6, alpha);
-    /*Draw_ColorPic (0, vid.height - fx_blood_ru->height, fx_blood_ld, 82, 6, 6, alpha);
-    Draw_ColorPic (vid.width - fx_blood_ru->width, 0, fx_blood_ru, 82, 6, 6, alpha);
-    Draw_ColorPic (vid.width - fx_blood_ru->width, vid.height - fx_blood_ru->height, fx_blood_rd, 82, 6, 6, alpha);*/
+#else
+	// First Ring
+	if (cl.stats[STAT_HEALTH] <= 75) {
+		Draw_Fill(0, 0, vid.width, 6, 247); // top
+		Draw_Fill(0, 0, 6, vid.height, 247); // left
+		Draw_Fill(vid.width - 6, 0, 6, vid.height, 247); // right
+		Draw_Fill(0, vid.height - 6, vid.width, 6, 247); // bottom
+	}
+	// Second Ring
+	if (cl.stats[STAT_HEALTH] <= 50) {
+		Draw_Fill(6, 6, vid.width - 12, 3, 248); // top
+		Draw_Fill(6, 6, 3, vid.height - 12, 248); // left
+		Draw_Fill(vid.width - 9, 6, 3, vid.height - 12, 248); // right
+		Draw_Fill(6, vid.height - 9, vid.width - 12, 3, 248); // bottom
+	}
+	if (cl.stats[STAT_HEALTH] <= 20 && cl.stats[STAT_HEALTH] != -10) {
+		Draw_Fill(9, 9, vid.width - 18, 2, 249); // top
+		Draw_Fill(9, 9, 2, vid.height - 18, 249); // left
+		Draw_Fill(vid.width - 11, 9, 2, vid.height - 18, 249); // right
+		Draw_Fill(9, vid.height - 11, vid.width - 18, 2, 249); // bottom
+	}
+#endif // GFX_GOOD_BLOOD
 }
 
 /*
@@ -583,15 +602,15 @@ void HUD_WorldText(int alpha)
 
 		if (!strcmp("location", key)) // search for location key
 		{
-			Draw_ColoredString(4, vid.height/2 + 16, value, 255, 255, 255, alpha, 1);
+			Draw_String(4, vid.height/2 + 16, value);
 		}
 		if (!strcmp("date", key)) // search for date key
 		{
-			Draw_ColoredString(4, vid.height/2 + 26, value, 255, 255, 255, alpha, 1);
+			Draw_String(4, vid.height/2 + 26, value);
 		}
 		if (!strcmp("person", key)) // search for person key
 		{
-			Draw_ColoredString(4, vid.height/2 + 36, value, 255, 255, 255, alpha, 1);
+			Draw_String(4, vid.height/2 + 36, value);
 		}
 	}
 }
@@ -609,7 +628,7 @@ void HUD_MaxAmmo(void)
 	maxammoy -= cl.time * 0.003;
 	maxammoopac -= 5;
 
-	Draw_ColoredString(vid.width/2 - strlen("MAX AMMO!")*2, maxammoy, "MAX AMMO!", 255, 255, 255, maxammoopac, 1);
+	Draw_String(vid.width/2 - strlen("MAX AMMO!")*2, maxammoy, "MAX AMMO!");
 
 	if (maxammoopac <= 0) {
 		domaxammo = false;
@@ -650,7 +669,7 @@ void HUD_Rounds (void)
 		if (!value)
 			value = 255;
 
-		Draw_ColoredString(vid.width/2 - (strlen("Round")*8/2), 80, "Round", 255, value, value, 255, 2);
+		Draw_String(vid.width/2 - (strlen("Round")*8/2), 80, "Round");
 		
 		value -= cl.time * 0.4;
 
@@ -664,10 +683,10 @@ void HUD_Rounds (void)
 	// Now, fade out, and start fading worldtext in
 	// ~3s for fade out, 
 	else if (textstate == 1) {
-		Draw_ColoredString(vid.width/2 - (strlen("Round")*8/2), 80, "Round", 255, 0, 0, value, 2);
+		Draw_StringPaletted(vid.width/2 - (strlen("Round")*8/2), 80, "Round", PAL_WHITETORED);
 
 		HUD_WorldText(value2);
-		Draw_ColoredString(4, vid.height/2 + 6, "'Nazi Zombies'", 255, 255, 255, value2, 1);
+		Draw_String(4, vid.height/2 + 6, "'Nazi Zombies'");
 		
 		value -= cl.time * 0.4;
 		value2 += cl.time * 0.4;
@@ -681,7 +700,7 @@ void HUD_Rounds (void)
 	// Hold world text for a few seconds
 	else if (textstate == 2) {
 		HUD_WorldText(255);
-		Draw_ColoredString(4, vid.height/2 + 6, "'Nazi Zombies'", 255, 255, 255, 255, 1);
+		Draw_String(4, vid.height/2 + 6, "'Nazi Zombies'");
 
 		value2 += cl.time * 0.4;
 
@@ -693,7 +712,7 @@ void HUD_Rounds (void)
 	// Fade worldtext out, finally.
 	else if (textstate == 3) {
 		HUD_WorldText(value2);
-		Draw_ColoredString(4, vid.height/2 + 6, "'Nazi Zombies'", 255, 255, 255, value2, 1);
+		Draw_String(4, vid.height/2 + 6, "'Nazi Zombies'");
 
 		value2 -= cl.time * 0.4;
 
@@ -1325,9 +1344,9 @@ void HUD_Ammo (void)
 	//
 	magstring = va("%i", cl.stats[STAT_CURRENTMAG]);
 	if (GetLowAmmo(cl.stats[STAT_ACTIVEWEAPON], 1) >= cl.stats[STAT_CURRENTMAG]) {
-		Draw_ColoredString((vid.width-(reslen*8)) - strlen(magstring)*8, 188, magstring, 255, 0, 0, 255, 1);
+		Draw_StringPaletted((vid.width-(reslen*8)) - strlen(magstring)*8, 188, magstring, PAL_WHITETORED);
 	} else {
-		Draw_ColoredString((vid.width-(reslen*8)) - strlen(magstring)*8, 188, magstring, 255, 255, 255, 255, 1);
+		Draw_String((vid.width-(reslen*8)) - strlen(magstring)*8, 188, magstring);
 	}
 
 	//
@@ -1335,9 +1354,9 @@ void HUD_Ammo (void)
 	//
 	magstring = va("/%i", cl.stats[STAT_AMMO]);
 	if (GetLowAmmo(cl.stats[STAT_ACTIVEWEAPON], 0) >= cl.stats[STAT_AMMO]) {
-		Draw_ColoredString(vid.width - strlen(magstring)*8, 188, magstring, 255, 0, 0, 255, 1);
+		Draw_StringPaletted(vid.width - strlen(magstring)*8, 188, magstring, PAL_WHITETORED);
 	} else {
-		Draw_ColoredString(vid.width - strlen(magstring)*8, 188, magstring, 255, 255, 255, 255, 1);
+		Draw_String(vid.width - strlen(magstring)*8, 188, magstring);
 	}
 }
 
@@ -1355,13 +1374,13 @@ void HUD_AmmoString (void)
 
 		if (0 < cl.stats[STAT_AMMO] && cl.stats[STAT_CURRENTMAG] >= 0) {
 			x = (vid.width - strlen("Reload")*8)/2;
-			Draw_ColoredString (x, 140, "Reload", 255, 255, 255, 255, 1);
+			Draw_String(x, 140, "Reload");
 		} else if (0 < cl.stats[STAT_CURRENTMAG]) {
 			x = (vid.width - strlen("LOW AMMO")*8)/2;
-			Draw_ColoredString (x, 140, "LOW AMMO", 255, 255, 0, 255, 1);
+			Draw_StringPaletted(x, 140, "LOW AMMO", PAL_WHITETOYELLOW);
 		} else {
 			x = (vid.width - strlen("NO AMMO")*8)/2;
-			Draw_ColoredString (x, 140, "NO AMMO", 255, 0, 0, 255, 1);
+			Draw_StringPaletted(x, 140, "NO AMMO", PAL_WHITETORED);
 		}
 	}
 }
@@ -1380,7 +1399,7 @@ void HUD_Grenades (void)
 	if (cl.stats[STAT_GRENADES] & UI_FRAG)
 	{
 		if (cl.stats[STAT_PRIGRENADES] <= 0)
-			Draw_ColoredString (vid.width - Draw_CachePic(fragpic)->width/2, vid.height - Draw_CachePic(fragpic)->height / 2, va ("%i",cl.stats[STAT_PRIGRENADES]), 255, 0, 0, 255, 1);
+			Draw_StringPaletted(vid.width - Draw_CachePic(fragpic)->width/2, vid.height - Draw_CachePic(fragpic)->height / 2, va ("%i",cl.stats[STAT_PRIGRENADES]), PAL_WHITETORED);
 		else
 			Draw_String (vid.width - Draw_CachePic(fragpic)->width/2, vid.height - Draw_CachePic(fragpic)->height / 2, va ("%i",cl.stats[STAT_PRIGRENADES]));
 	}
@@ -1388,7 +1407,7 @@ void HUD_Grenades (void)
 	{
 		Draw_StretchPic (vid.width - (2 * Draw_CachePic(fragpic)->width) - 4, vid.height - (2 * Draw_CachePic(fragpic)->height), Draw_CachePic(bettypic), 22, 22);
 		if (cl.stats[STAT_PRIGRENADES] <= 0)
-			Draw_ColoredString (vid.width - (1.5 * Draw_CachePic(fragpic)->width) - 4, vid.height - (1.5 * Draw_CachePic(fragpic)->height), va ("%i",cl.stats[STAT_SECGRENADES]), 255, 0, 0, 255, 1);
+			Draw_StringPaletted(vid.width - (1.5 * Draw_CachePic(fragpic)->width) - 4, vid.height - (1.5 * Draw_CachePic(fragpic)->height), va ("%i",cl.stats[STAT_SECGRENADES]), PAL_WHITETORED);
 		else
 			Draw_String (vid.width - (1.5 * Draw_CachePic(fragpic)->width) - 4, vid.height - (1.5 * Draw_CachePic(fragpic)->height), va ("%i",cl.stats[STAT_SECGRENADES]));
 	}

@@ -29,7 +29,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //
 
 // !!! if this is changed, it must be changed in r_local.h too !!!
-#define	NEAR_CLIP	0.01
+#define	NEAR_CLIP	1
 
 // !!! if this is changed, it must be changed in r_local.h too !!!
 #define	CYCLE	128

@@ -214,6 +214,40 @@ SCR_UsePrint
 Similiar to above, but will also print the current button for the action.
 ==============
 */
+void to_upper(char* string)
+{
+    const char OFFSET = 'a' - 'A';
+    while (*string)
+    {
+        *string = (*string >= 'a' && *string <= 'z') ? *string -= OFFSET : *string;
+        string++;
+    }
+}
+
+char *GetBindKey(char *bind)
+{
+	int		j;
+	int		l;
+	char	*b;
+
+	l = strlen(bind);
+
+	for (j=0 ; j<256 ; j++)
+	{
+		b = keybindings[j];
+		if (!b)
+			continue;
+		if (!strncmp (b, bind, l))
+		{
+			// Convert to upper case
+			char *s = Key_KeynumToString(j);
+			to_upper(s);
+			return s;
+		}
+	}
+	
+	return " ";
+}
 
 char *GetButtonIcon (char *buttonname)
 {
@@ -433,11 +467,16 @@ void SCR_DrawUseString (void)
 	l2 = strlen (scr_usestring2);
 	x2 = (vid.width - l2*8)/2;
 
-    	Draw_String (x, y, scr_usestring);
+    Draw_String (x, y, scr_usestring);
 	Draw_String (x2, y + 10, scr_usestring2);
 
-	if (button_pic_x != 0 && button_pic_x != 100)
+	if (button_pic_x != 0 && button_pic_x != 100) {
+#ifdef PLATFORM_USES_BUTTONICONS
 		Draw_TransPic (x + button_pic_x*8, y, Draw_CachePic(GetButtonIcon("+use")));
+#else
+		Draw_String(x + button_pic_x*8, y, GetBindKey("+use"));
+#endif // PLATFORM_USES_BUTTONICONS
+	}
 }
 
 void SCR_CheckDrawUseString (void)
