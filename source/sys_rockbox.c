@@ -1,8 +1,27 @@
+#include "SDL.h"
+#ifdef __LINUX__
+#include <unistd.h>
+#include <sys/time.h>
+#include <signal.h>
+#endif
+#include <stdlib.h>
 #include <limits.h>
 #include <sys/types.h>
+#include <fcntl.h>
 #include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
 #include <ctype.h>
 #include <errno.h>
+#ifdef __LINUX__
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
+#include <sys/mman.h>
+#endif
+
+#include "rockboxdef.h"
 
 #include "quakedef.h"
 

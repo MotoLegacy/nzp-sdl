@@ -33,7 +33,9 @@ void Sys_Error (char *error, ...);
 vec3_t vec3_origin = {0,0,0};
 int nanmask = 255<<23;
 
+#ifndef ROCKBOX
 double sqrt(double x);
+#endif 
 
 /*-----------------------------------------------------------------*/
 

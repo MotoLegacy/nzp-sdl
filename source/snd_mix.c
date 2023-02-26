@@ -340,59 +340,57 @@ void SND_InitScaletable (void)
 			snd_scaletable[i][j] = ((signed char)j) * i * 8;
 }
 
-
-#if	!id386
+#if    !id386
 
 void SND_PaintChannelFrom8 (channel_t *ch, sfxcache_t *sc, int count)
 {
-	int 	data;
-	int		*lscale, *rscale;
-	unsigned char *sfx;
-	int		i;
+       int     data;
+       int             *lscale, *rscale;
+       unsigned char *sfx;
+       int             i;
 
-	if (ch->leftvol > 255)
-		ch->leftvol = 255;
-	if (ch->rightvol > 255)
-		ch->rightvol = 255;
-		
-	lscale = snd_scaletable[ch->leftvol >> 3];
-	rscale = snd_scaletable[ch->rightvol >> 3];
-	sfx = (signed char *)sc->data + ch->pos;
+       if (ch->leftvol > 255)
+               ch->leftvol = 255;
+       if (ch->rightvol > 255)
+               ch->rightvol = 255;
+               
+       lscale = snd_scaletable[ch->leftvol >> 3];
+       rscale = snd_scaletable[ch->rightvol >> 3];
+       sfx = (signed char *)sc->data + ch->pos;
 
-	for (i=0 ; i<count ; i++)
-	{
-		data = sfx[i];
-		paintbuffer[i].left += lscale[data];
-		paintbuffer[i].right += rscale[data];
-	}
-	
-	ch->pos += count;
+       for (i=0 ; i<count ; i++)
+       {
+               data = sfx[i];
+               paintbuffer[i].left += lscale[data];
+               paintbuffer[i].right += rscale[data];
+       }
+       
+       ch->pos += count;
 }
 
-#endif	// !id386
+#endif // !id386
 
 
 void SND_PaintChannelFrom16 (channel_t *ch, sfxcache_t *sc, int count)
 {
-	int data;
-	int left, right;
-	int leftvol, rightvol;
-	signed short *sfx;
-	int	i;
+       int data;
+       int left, right;
+       int leftvol, rightvol;
+       signed short *sfx;
+       int     i;
 
-	leftvol = ch->leftvol;
-	rightvol = ch->rightvol;
-	sfx = (signed short *)sc->data + ch->pos;
+       leftvol = ch->leftvol;
+       rightvol = ch->rightvol;
+       sfx = (signed short *)sc->data + ch->pos;
 
-	for (i=0 ; i<count ; i++)
-	{
-		data = sfx[i];
-		left = (data * leftvol) >> 8;
-		right = (data * rightvol) >> 8;
-		paintbuffer[i].left += left;
-		paintbuffer[i].right += right;
-	}
+       for (i=0 ; i<count ; i++)
+       {
+               data = sfx[i];
+               left = (data * leftvol) >> 8;
+               right = (data * rightvol) >> 8;
+               paintbuffer[i].left += left;
+               paintbuffer[i].right += right;
+       }
 
-	ch->pos += count;
+       ch->pos += count;
 }
-

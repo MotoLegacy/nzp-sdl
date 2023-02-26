@@ -57,6 +57,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define	GAMENAME	"nzp"
 
+#ifndef ROCKBOX
 #include <math.h>
 #include <assert.h>
 #include <string.h>
@@ -66,6 +67,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <stdint.h>
 #include <setjmp.h>
 #include <stdbool.h>
+#else 
+#include "SDL.h"
+#include <stdarg.h>
+#include <setjmp.h>
+#include "rockboxdef.h"
+#endif
+
 
 #if id386
 #define UNALIGNED_OK	1	// set to 0 if unaligned accesses are not supported
@@ -302,12 +310,7 @@ typedef struct
 #include "protocol.h"
 #include "cmd.h"
 #include "sbar.h"
-#if __LINUX__
-#include "sound.h"
-#else 
-// rockbox
 #include "quakesound.h"
-#endif
 #include "render.h"
 #include "client.h"
 #include "progs.h"

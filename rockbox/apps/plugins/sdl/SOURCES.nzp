@@ -61,9 +61,6 @@ progs/nzp/snd_mix.c
 progs/nzp/snd_mix_arm.S
 #endif
 
-/* we still need generic no matter what */
-progs/nzp/snd_mix_generic.c
-
 progs/nzp/snd_sdl.c
 progs/nzp/sv_main.c
 progs/nzp/sv_move.c
