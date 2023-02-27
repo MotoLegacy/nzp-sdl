@@ -1362,7 +1362,7 @@ void HUD_Grenades (void)
 	if (cl.stats[STAT_GRENADES] & UI_FRAG)
 	{
 		if (cl.stats[STAT_PRIGRENADES] <= 0)
-			Draw_AdvancedString(vid.width - fragpic->width/2, vid.height - fragpic->height / 2, va ("%i",cl.stats[STAT_PRIGRENADES]), 255, PAL_WHITETORED);
+			Draw_AdvancedString(vid.width - fragpic->width/2, vid.height - fragpic->height / 2, va ("%i",cl.stats[STAT_PRIGRENADES]), 255, PAL_STANDARD);
 		else
 			Draw_String (vid.width - fragpic->width/2, vid.height - fragpic->height / 2, va ("%i",cl.stats[STAT_PRIGRENADES]));
 	}
@@ -1370,7 +1370,7 @@ void HUD_Grenades (void)
 	{
 		Draw_StretchPic (vid.width - (2 * fragpic->width) - 4, vid.height - (2 * fragpic->height), bettypic, 22, 22);
 		if (cl.stats[STAT_PRIGRENADES] <= 0)
-			Draw_AdvancedString(vid.width - (1.5 * fragpic->width) - 4, vid.height - (1.5 * fragpic->height), va ("%i",cl.stats[STAT_SECGRENADES]), 255, PAL_WHITETORED);
+			Draw_AdvancedString(vid.width - (1.5 * fragpic->width) - 4, vid.height - (1.5 * fragpic->height), va ("%i",cl.stats[STAT_SECGRENADES]), 255, PAL_STANDARD);
 		else
 			Draw_String (vid.width - (1.5 * fragpic->width) - 4, vid.height - (1.5 * fragpic->height), va ("%i",cl.stats[STAT_SECGRENADES]));
 	}
