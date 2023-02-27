@@ -258,6 +258,21 @@ Loads a model into the cache
 */
 model_t *Mod_LoadModel (model_t *mod, qboolean crash)
 {
+	Con_Printf("Mod_LoadModel: %s\n", mod->name);
+#if ROCKBOX
+    // prevents crashes
+    extern struct mutex snd_mutex;
+    extern int snd_mutex_init;
+
+    if(!snd_mutex_init)
+    {
+        rb->mutex_init(&snd_mutex);
+        snd_mutex_init = 1;
+    }
+
+    rb->mutex_lock(&snd_mutex);
+#endif
+    //printf("loadmodel 1");
 	unsigned *buf;
 	byte	stackbuf[1024];		// avoid dirtying the cache heap
 
@@ -266,44 +281,57 @@ model_t *Mod_LoadModel (model_t *mod, qboolean crash)
 		if (Cache_Check (&mod->cache))
 		{
 			mod->needload = NL_PRESENT;
+#if ROCKBOX
+                        rb->mutex_unlock(&snd_mutex);
+#endif
 			return mod;
 		}
 	}
 	else
 	{
 		if (mod->needload == NL_PRESENT)
-			return mod;
+                {
+#if ROCKBOX
+                    rb->mutex_unlock(&snd_mutex);
+#endif
+                    return mod;
+                }
 	}
 
 //
 // because the world is so huge, load it one piece at a time
 //
 	
+
 //
 // load the file
 //
 	buf = (unsigned *)COM_LoadStackFile (mod->name, stackbuf, sizeof(stackbuf));
-	if (!buf)
-	{
-		// Reload with another .mdl
-		buf = (unsigned *)COM_LoadStackFile("models/missing_model.mdl", stackbuf, sizeof(stackbuf));
-		if (buf)
-		{
-			Con_Printf ("Missing model %s substituted\n", mod->name);
-		}
-		else 
-		{
-			return NULL;	
-		}
-	}
+    if (!buf)
+    {
+        // Reload with another .mdl
+        buf = (unsigned *)COM_LoadStackFile("models/missing_model.mdl", stackbuf, sizeof(stackbuf));
+        if (buf)
+        {
+            Con_Printf ("Missing model %s substituted\n", mod->name);
+        }
+        else 
+        {
+            return NULL;	
+        }
+    }
 	
 //
 // allocate a new model
 //
+        //printf("LoadModel1: %08x (%08x)", buf[0], buf);
+        
 	COM_FileBase (mod->name, loadname);
+        //printf("LoadModel2: %08x (%08x)", buf[0], buf);
 	
 	loadmodel = mod;
 
+        //printf("loadmodel 3");
 //
 // fill it in
 //
@@ -322,10 +350,13 @@ model_t *Mod_LoadModel (model_t *mod, qboolean crash)
 		break;
 	
 	default:
+            //printf("unkn %08x (&=%08x), nat %08x def to brush", LittleLongUnaligned(buf[0]), &buf[0], buf[0]);
 		Mod_LoadBrushModel (mod, buf);
 		break;
 	}
-
+#if ROCKBOX
+        rb->mutex_unlock(&snd_mutex);
+#endif
 	return mod;
 }
 
@@ -338,6 +369,7 @@ Loads in a model for the given name
 */
 model_t *Mod_ForName (char *name, qboolean crash)
 {
+	Con_Printf("Mod_ForName: %s\n", name);
 	model_t	*mod;
 
 	mod = Mod_FindName (name);
@@ -690,6 +722,8 @@ void Mod_LoadSubmodels (lump_t *l)
 
 	loadmodel->submodels = out;
 	loadmodel->numsubmodels = count;
+
+	Con_Printf("Numsubmodels: %d\n", count);
 
 	for ( i=0 ; i<count ; i++, in++, out++)
 	{
@@ -1856,10 +1890,14 @@ void * Mod_LoadSpriteGroup (void * pin, mspriteframe_t **ppframe)
 
 	pingroup = (dspritegroup_t *)pin;
 
+	Con_Printf("Mod_LoadSpriteGroup: pingroup->numframes: %d\n", pingroup->numframes);
 	numframes = LittleLongUnaligned (pingroup->numframes);
 
+	Con_Printf("Mod_LoadSpriteGroup: before Hunk_AllocName 0\n");
 	pspritegroup = Hunk_AllocName (sizeof (mspritegroup_t) +
 				(numframes - 1) * sizeof (pspritegroup->frames[0]), loadname);
+
+	Con_Printf("Mod_LoadSpriteGroup: after Hunk_AllocName 0\n");
 
 	pspritegroup->numframes = numframes;
 
@@ -1867,7 +1905,12 @@ void * Mod_LoadSpriteGroup (void * pin, mspriteframe_t **ppframe)
 
 	pin_intervals = (dspriteinterval_t *)(pingroup + 1);
 
+	Con_Printf("Mod_LoadSpriteGroup: before Hunk_AllocName 1\n");
+
+	Con_Printf("numframes: %d, sizeof(float) %d\t %d\n", numframes, sizeof(float), numframes * sizeof(float));
 	poutintervals = Hunk_AllocName (numframes * sizeof (float), loadname);
+
+	Con_Printf("Mod_LoadSpriteGroup: after Hunk_AllocName 1\n");
 
 	pspritegroup->intervals = poutintervals;
 
@@ -1882,6 +1925,8 @@ void * Mod_LoadSpriteGroup (void * pin, mspriteframe_t **ppframe)
 	}
 
 	ptemp = (void *)pin_intervals;
+
+	Con_Printf("Mod_LoadSpriteGroup: before Mod_LoadSpriteFrame\n");
 
 	for (i=0 ; i<numframes ; i++)
 	{
@@ -1899,6 +1944,8 @@ Mod_LoadSpriteModel
 */
 void Mod_LoadSpriteModel (model_t *mod, void *buffer)
 {
+	Con_Printf("Mod_LoadSpriteModel: %s\n", mod->name);
+
 	int					i;
 	int					version;
 	dsprite_t			*pin;
@@ -1918,7 +1965,11 @@ void Mod_LoadSpriteModel (model_t *mod, void *buffer)
 
 	size = sizeof (msprite_t) +	(numframes - 1) * sizeof (psprite->frames);
 
+	Con_Printf("Mod_LoadSpriteModel: before Hunk_AllocName %s\n", mod->name);
+
 	psprite = Hunk_AllocName (size, loadname);
+
+	Con_Printf("Mod_LoadSpriteModel: after Hunk_AllocName %s\n", mod->name);
 
 	mod->cache.data = psprite;
 
@@ -1937,8 +1988,9 @@ void Mod_LoadSpriteModel (model_t *mod, void *buffer)
 //
 // load the frames
 //
-	if (numframes < 1)
+	if (numframes < 1) {
 		Sys_Error ("Mod_LoadSpriteModel: Invalid # of frames: %d\n", numframes);
+	}
 
 	mod->numframes = numframes;
 	mod->flags = 0;
@@ -1949,20 +2001,28 @@ void Mod_LoadSpriteModel (model_t *mod, void *buffer)
 	{
 		spriteframetype_t	frametype;
 
+		Con_Printf("pframetype->type: %x\n", pframetype->type);
 		frametype = LittleLongUnaligned (pframetype->type);
 		psprite->frames[i].type = frametype;
 
+		Con_Printf("frametype: %d (SPR_SINGLE = %d)\n", frametype, SPR_SINGLE);
 		if (frametype == SPR_SINGLE)
 		{
+			Con_Printf("Mod_LoadSpriteModel: before Mod_LoadSpriteFrame %s\n", mod->name);
 			pframetype = (dspriteframetype_t *)
 					Mod_LoadSpriteFrame (pframetype + 1,
 										 &psprite->frames[i].frameptr);
+			Con_Printf("Mod_LoadSpriteModel: after Mod_LoadSpriteFrame %s\n", mod->name);
 		}
 		else
 		{
+			Con_Printf("Mod_LoadSpriteModel: before Mod_LoadSpriteGroup %s\n", mod->name);
+
 			pframetype = (dspriteframetype_t *)
 					Mod_LoadSpriteGroup (pframetype + 1,
 										 &psprite->frames[i].frameptr);
+			Con_Printf("Mod_LoadSpriteModel: after Mod_LoadSpriteGroup %s\n", mod->name);
+
 		}
 	}
 

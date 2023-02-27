@@ -2482,12 +2482,14 @@ void PF_precache_model (void)
 	char	*s;
 	int		i;
 	
-	if (sv.state != ss_loading)
+	if (sv.state != ss_loading) 
 		PR_RunError ("PF_Precache_*: Precache can only be done in spawn functions");
 		
 	s = G_STRING(OFS_PARM0);
 	G_INT(OFS_RETURN) = G_INT(OFS_PARM0);
 	PR_CheckEmptyString (s);
+
+	Con_Printf("Precaching model %s\n", s);
 
 	for (i=0 ; i<MAX_MODELS ; i++)
 	{

@@ -875,10 +875,10 @@ void Draw_ConsoleBackground (int lines)
 
 	conback = Draw_CachePic ("gfx/conback.lmp");
 
-	dest = conback->data + 320 - 43 + 320*186;
+	//dest = conback->data + 320 - 43 + 320*186;
 
-	for (x=0 ; x<strlen(ver) ; x++)
-		Draw_CharToConback (ver[x], dest+(x<<3));
+	//for (x=0 ; x<strlen(ver) ; x++)
+	//	Draw_CharToConback (ver[x], dest+(x<<3));
 	
 // draw the pic
 	if (r_pixbytes == 1)
@@ -889,8 +889,9 @@ void Draw_ConsoleBackground (int lines)
 		{
 			v = (vid.conheight - lines + y)*200/vid.conheight;
 			src = conback->data + v*320;
-			if (vid.conwidth == 320)
+			if (vid.conwidth == 320) {
 				memcpy (dest, src, vid.conwidth);
+			}
 			else
 			{
 				f = 0;
