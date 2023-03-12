@@ -629,7 +629,6 @@ while (1)
 			i = -newf->first_statement;
 			if (i >= pr_numbuiltins)
 				PR_RunError ("Bad builtin call number");
-			Con_Printf("Calling Builtin %d\n", i);
 			pr_builtins[i] ();
 			break;
 		}
