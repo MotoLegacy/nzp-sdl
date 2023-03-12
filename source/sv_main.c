@@ -204,7 +204,9 @@ void SV_SendServerinfo (client_t *client)
 	else
 		MSG_WriteByte (&client->message, GAME_COOP);
 
-	MSG_WriteString (&client->message, PR_GetString(sv.edicts->v.message));
+	sprintf (message, pr_strings+sv.edicts->v.message);
+
+	MSG_WriteString (&client->message,message);
 
 	for (s = sv.model_precache+1 ; *s ; s++)
 		MSG_WriteString (&client->message, *s);
@@ -449,7 +451,7 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 		if (ent != clent)	// clent is ALLWAYS sent
 		{
 // ignore ents without visible models
-			if (!ent->v.modelindex || !PR_GetString(ent->v.model)[0])
+			if (!ent->v.modelindex || !pr_strings[ent->v.model])
 				continue;
 
 			for (i=0 ; i < ent->num_leafs ; i++)
@@ -902,14 +904,13 @@ int SV_ModelIndex (char *name)
 	if (!name || !name[0])
 		return 0;
 
-	for (i=0 ; i<MAX_MODELS && sv.model_precache[i] ; i++)
+	for (i=0 ; i<MAX_MODELS && sv.model_precache[i] ; i++) {
 		if (!strcmp(sv.model_precache[i], name))
 			return i;
-	if (i==MAX_MODELS || !sv.model_precache[i]) {
-		Con_Printf ("SV_ModelIndex: model %s not precached", name);
-		return 0;
 	}
-		
+	if (i==MAX_MODELS || !sv.model_precache[i]) {
+		Sys_Error ("SV_ModelIndex: model %s not precached", name);
+	}
 	return i;
 }
 
@@ -949,7 +950,8 @@ void SV_CreateBaseline (void)
 		else
 		{
 			svent->baseline.colormap = 0;
-			svent->baseline.modelindex = svent->baseline.modelindex = SV_ModelIndex(PR_GetString(svent->v.model));
+			svent->baseline.modelindex =
+				SV_ModelIndex(pr_strings + svent->v.model);
 		}
 		
 	//
@@ -1147,7 +1149,6 @@ void SV_SpawnServer (char *server)
 
 	sv.model_precache[0] = pr_strings;
 	sv.model_precache[1] = sv.modelname;
-
 	for (i=1 ; i<sv.worldmodel->numsubmodels ; i++)
 	{
 		sv.model_precache[1+i] = localmodels[i];
@@ -1451,3 +1452,4 @@ void Load_Waypoint ()
 	W_fclose(h);
 	//Z_Free (w_string_temp);
 }
+

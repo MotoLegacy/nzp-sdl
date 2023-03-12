@@ -257,7 +257,7 @@ void PF_setmodel (void)
 		PR_RunError ("no precache: %s\n", m);
 		
 
-	e->v.model = PR_SetEngineString(*check);
+	e->v.model = m - pr_strings;
 	e->v.modelindex = i; //SV_ModelIndex (m);
 
 	mod = sv.models[ (int)e->v.modelindex];  // Mod_ForName (m, true);
@@ -364,6 +364,7 @@ void PF_useprint (void)
 	type = G_FLOAT(OFS_PARM1);
 	cost = G_FLOAT(OFS_PARM2);
 	weapon = G_FLOAT(OFS_PARM3);
+
 
 	if (entnum < 1 || entnum > svs.maxclients)
 	{
@@ -608,14 +609,18 @@ void PF_sound (void)
 	sample = G_STRING(OFS_PARM2);
 	volume = G_FLOAT(OFS_PARM3) * 255;
 	attenuation = G_FLOAT(OFS_PARM4);
-
-	if (!nosound.value) {
+	
+	if (!nosound.value)
+	{
 		if (volume < 0 || volume > 255)
 			Sys_Error ("SV_StartSound: volume = %i", volume);
+
 		if (attenuation < 0 || attenuation > 4)
 			Sys_Error ("SV_StartSound: attenuation = %f", attenuation);
+
 		if (channel < 0 || channel > 7)
 			Sys_Error ("SV_StartSound: channel = %i", channel);
+
 		SV_StartSound (entity, channel, sample, volume, attenuation);
 	}
 }
@@ -2458,10 +2463,10 @@ void PF_precache_sound (void)
 		
 	s = G_STRING(OFS_PARM0);
 	G_INT(OFS_RETURN) = G_INT(OFS_PARM0);
-	
-	if (nosound.value)
-		return;
-	
+
+    if (nosound.value)
+    	return;
+
 	PR_CheckEmptyString (s);
 	
 	for (i=0 ; i<MAX_SOUNDS ; i++)
@@ -2482,7 +2487,7 @@ void PF_precache_model (void)
 	char	*s;
 	int		i;
 	
-	if (sv.state != ss_loading) 
+	if (sv.state != ss_loading)
 		PR_RunError ("PF_Precache_*: Precache can only be done in spawn functions");
 		
 	s = G_STRING(OFS_PARM0);
@@ -3022,7 +3027,7 @@ void PF_makestatic (void)
 
 	MSG_WriteByte (&sv.signon,svc_spawnstatic);
 
-	MSG_WriteByte (&sv.signon, SV_ModelIndex(PR_GetString(ent->v.model)));
+	MSG_WriteByte (&sv.signon, SV_ModelIndex(pr_strings + ent->v.model));
 
 	MSG_WriteByte (&sv.signon, ent->v.frame);
 	MSG_WriteByte (&sv.signon, ent->v.colormap);
@@ -3146,8 +3151,8 @@ void PF_SongEgg (void)
 	
 	trackname = G_STRING(OFS_PARM0);
 
-	//MSG_WriteByte (&sv.reliable_datagram,   svc_songegg);
-	//MSG_WriteString (&sv.reliable_datagram, trackname);
+	MSG_WriteByte (&sv.reliable_datagram,   svc_songegg);
+	MSG_WriteString (&sv.reliable_datagram, trackname);
 }
 
 /*
@@ -3214,11 +3219,11 @@ void PF_updateLimb (void)
 
 	zombieent = G_EDICTNUM(OFS_PARM0);
 	limb = G_FLOAT(OFS_PARM1);
-	limbent = G_EDICTNUM(OFS_PARM2);
+	limbent = G_EDICTNUM(OFS_PARM2);/*
 	MSG_WriteByte (&sv.reliable_datagram,   svc_limbupdate);
 	MSG_WriteByte (&sv.reliable_datagram,  limb);
 	MSG_WriteShort (&sv.reliable_datagram,  zombieent);
-	MSG_WriteShort (&sv.reliable_datagram,  limbent);
+	MSG_WriteShort (&sv.reliable_datagram,  limbent);*/
 }
 
 /*
