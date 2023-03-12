@@ -176,6 +176,7 @@ void In_AimToggle(void)
 	{
 		IN_KLookUp();
 		IN_AimUp();
+		V_StartPitchDrift();
 	}
 	else
 	{
