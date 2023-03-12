@@ -151,86 +151,6 @@ inline byte convert_white_to_yellow(byte color_index)
 	return color_index;
 }
 
-qpic_t *Draw_CachePicColorOverride(char *path, unsigned short color_hack)
-{
-	cachepic_t	*pic;
-	int			i;
-	qpic_t		*dat;
-	
-	for (pic=menu_cachepics, i=0 ; i<menu_numcachepics ; pic++, i++)
-		if (!strcmp (path, pic->name))
-			break;
-
-	if (i == menu_numcachepics)
-	{
-		if (menu_numcachepics == MAX_CACHED_PICS)
-			Sys_Error ("menu_numcachepics == MAX_CACHED_PICS");
-		menu_numcachepics++;
-		strcpy (pic->name, path);
-	}
-
-	dat = Cache_Check (&pic->cache);
-
-	if (dat)
-		return dat;
-
-//
-// load the pic from disk
-//
-	COM_LoadCacheFile (path, &pic->cache);
-	
-	dat = (qpic_t *)pic->cache.data;
-	if (!dat)
-	{
-	#if 1
-		// naievil -- this is the start of the stupid texture conversion stuff 
-		// the goal here is a few steps: open file and grab data, 
-		// then convert to rgb, convert picture to qpal, upload data to cache
-		// then display
-
-		// clear just in case
-		memset(temp_pixel_storage_pixels, 0, MAX_SINGLE_PLANE_PIXEL_SIZE*4);
-		memset(converted_pixels, 0, MAX_SINGLE_PLANE_PIXEL_SIZE);
-
-		// load the image into the buffer
-		int success = loadtextureimage (path, -1, -1, false, false);
-		if (!success) {
-			goto bail;
-		}
-		// Convert to qpal
-		int converted_counter = 0;
-		for (int i = 0; i < image_width * image_height * 4; i+= 4) {
-			converted_pixels[converted_counter] = findclosestpalmatch(temp_pixel_storage_pixels[i], temp_pixel_storage_pixels[i + 1], temp_pixel_storage_pixels[i + 2], temp_pixel_storage_pixels[i + 3]);
-
-			switch(color_hack) {
-				case PAL_WHITETORED: converted_pixels[converted_counter] = convert_white_to_red(converted_pixels[converted_counter]); break;
-				case PAL_WHITETOYELLOW: converted_pixels[converted_counter] = convert_white_to_yellow(converted_pixels[converted_counter]); break;
-				default: break;
-			}
-
-			converted_counter++;
-		}
-
-		COM_LoadPictoCache(path, &pic->cache, image_width, image_height, converted_pixels);
-		dat = (qpic_t *) pic->cache.data;
-		if (!dat) 
-		{
-#endif 
-
-bail:
-		Sys_Error ("Draw_CachePic: failed to load %s", path);
-		}
-		else 
-		{
-			Con_DPrintf("Finished conversion of %s\n", path);
-		}
-	}
-
-	SwapPic (dat);
-
-	return dat;
-}
-
 /*
 ================
 Draw_CachePic
@@ -343,12 +263,27 @@ It can be clipped to the top of the screen to allow the console to be
 smoothly scrolled off.
 ================
 */
-void Draw_CharacterPaletted(int x, int y, int num, unsigned short color_hack) {
+void Draw_AdvancedCharacter(int x, int y, int num, int alpha, unsigned short color_hack) {
 	byte			*dest;
 	byte			*source;
 	unsigned short	*pusdest;
 	int				drawline;	
 	int				row, col;
+	int 			dither_factor;
+	int 			pixel_tracker;
+
+	if (alpha < 16)
+		return;
+	if (alpha < 32)
+		dither_factor = 9;
+	else if (alpha < 64)
+		dither_factor = 6;
+	else if (alpha < 128)
+		dither_factor = 3;
+	else
+		dither_factor = 0;
+
+	pixel_tracker = 0;
 
 	num &= 255;
 	
@@ -382,6 +317,15 @@ void Draw_CharacterPaletted(int x, int y, int num, unsigned short color_hack) {
 	
 		while (drawline--)
 		{
+			pixel_tracker++;
+
+			// guard it to avoid spamming moduli
+			if (dither_factor != 0) {
+				// motolegacy -- this actually doesnt work as originally intended but it looks fucking awesome so im keeping it
+				if (pixel_tracker % dither_factor != 0)
+					continue;
+			}
+
 			// "Modern" (not 1996) GCC makes this almost as-fast
 			for(int i = 0; i < 8; i++) {
 				if (source[i]) {
@@ -408,6 +352,15 @@ void Draw_CharacterPaletted(int x, int y, int num, unsigned short color_hack) {
 
 		while (drawline--)
 		{
+			pixel_tracker++;
+
+			// guard it to avoid spamming moduli
+			if (dither_factor != 0) {
+				// motolegacy -- this actually doesnt work as originally intended but it looks fucking awesome so im keeping it
+				if (pixel_tracker % dither_factor != 0)
+					continue;
+			}
+
 			// "Modern" (not 1996) GCC makes this almost as-fast
 			for(int i = 0; i < 8; i++) {
 				if (source[i]) {
@@ -509,11 +462,11 @@ void Draw_CharacterRGBA(int x, int y, int num, float r, float g, float b, float 
 Draw_String
 ================
 */
-void Draw_StringPaletted(int x, int y, char *str, unsigned short color_hack)
+void Draw_AdvancedString(int x, int y, char *str, int alpha, unsigned short color_hack)
 {
 	while (*str)
 	{
-		Draw_CharacterPaletted(x, y, *str, color_hack);
+		Draw_AdvancedCharacter(x, y, *str, alpha, color_hack);
 		str++;
 		x += 8;
 	}
@@ -587,12 +540,103 @@ void Draw_AlphaPic (int x, int y, qpic_t *pic, float alpha)
 	Draw_Pic(x, y, pic);
 }
 
+/*
+============
+Draw_AdvancedPic
+============
+*/
+void Draw_AdvancedPic(int x, int y, qpic_t *pic, unsigned char alpha, unsigned char palette_hack)
+{
+	byte			*dest, *source;
+	unsigned short	*pusdest;
+	int				v, u;
+	int 			dither_factor;
+	int 			pixel_tracker;
+
+	if (alpha < 16)
+		return;
+	if (alpha < 32)
+		dither_factor = 9;
+	else if (alpha < 64)
+		dither_factor = 6;
+	else if (alpha < 128)
+		dither_factor = 3;
+	else
+		dither_factor = 0;
+
+	pixel_tracker = 0;
+
+	if ((x < 0) ||
+		(x + pic->width > vid.width) ||
+		(y < 0) ||
+		(y + pic->height > vid.height))
+	{
+		Con_Printf("pic->width: %d pic->height: %d\n", pic->width, pic->height);
+		Sys_Error ("Draw_AdvancedPic: bad coordinates");
+	}
+
+	source = pic->data;
+
+	if (r_pixbytes == 1) {
+		dest = vid.buffer + y * vid.rowbytes + x;
+
+		for (v=0 ; v<pic->height ; v++) {
+			for (u=0 ; u<pic->width ; u++) {
+				pixel_tracker++;
+
+				// guard it to avoid spamming moduli
+				if (dither_factor != 0) {
+					// motolegacy -- this actually doesnt work as originally intended but it looks fucking awesome so im keeping it
+					if (pixel_tracker % dither_factor != 0)
+						continue;
+				}
+
+				// Skip "transparent" pixels
+				if (source[u] != 255) {
+					switch(palette_hack) {
+						case PAL_WHITETORED: dest[u] = convert_white_to_red(source[u]); break;
+						case PAL_WHITETOYELLOW: dest[u] = convert_white_to_yellow(source[u]); break;
+						default: dest[u] = source[u]; break;
+					}
+				}
+			}
+	
+			dest += vid.rowbytes;
+			source += pic->width;
+		}
+	}
+	else {
+	// FIXME: pretranslate at load time?
+		pusdest = (unsigned short *)vid.buffer + y * (vid.rowbytes >> 1) + x;
+
+		for (v=0 ; v<pic->height ; v++)
+		{
+			for (u=0 ; u<pic->width ; u++)
+			{
+				// Skip "transparent" pixels
+				if (source[u] == 255)
+					continue;
+
+				switch(palette_hack) {
+					case PAL_WHITETORED: d_8to16table[convert_white_to_red(source[u])]; break;
+					case PAL_WHITETOYELLOW: d_8to16table[convert_white_to_yellow(source[u])]; break;
+					default: pusdest[u] = d_8to16table[source[u]]; break;
+				}
+			}
+
+			pusdest += vid.rowbytes >> 1;
+			source += pic->width;
+		}
+	}
+}
 
 /*
 =============
 Draw_Pic
 =============
 */
+
+// this is just left-over for old things that havent been moved over to Draw_AdvancedPic()
 void Draw_Pic (int x, int y, qpic_t *pic)
 {
 	byte			*dest, *source;
