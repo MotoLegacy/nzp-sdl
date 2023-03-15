@@ -919,11 +919,10 @@ void Draw_ConsoleBackground (int lines)
 
 	conback = Draw_CachePic ("gfx/conback.lmp");
 
-	dest = conback->data + 320 - 43 + 320*186;
-	sprintf (ver, "%.2f", (float)VERSION);
+	//dest = conback->data + 320 - 43 + 320*186;
 
-	for (x=0 ; x<strlen(ver) ; x++)
-		Draw_CharToConback (ver[x], dest+(x<<3));
+	//for (x=0 ; x<strlen(ver) ; x++)
+	//	Draw_CharToConback (ver[x], dest+(x<<3));
 	
 // draw the pic
 	if (r_pixbytes == 1)
@@ -934,8 +933,9 @@ void Draw_ConsoleBackground (int lines)
 		{
 			v = (vid.conheight - lines + y)*200/vid.conheight;
 			src = conback->data + v*320;
-			if (vid.conwidth == 320)
+			if (vid.conwidth == 320) {
 				memcpy (dest, src, vid.conwidth);
+			}
 			else
 			{
 				f = 0;
@@ -2137,7 +2137,7 @@ byte* loadimagepixels (char* filename, qboolean complain, int matchwidth, int ma
 	return NULL;
 }
 
-int loadtextureimage (char* filename, int matchwidth, int matchheight, qboolean complain, qboolean mipmap, int *actual_image_width, int *actual_image_height)
+int loadtextureimage (char* filename, int matchwidth, int matchheight, bool complain, bool mipmap)
 {
 	byte *data = loadimagepixels (filename, complain, matchwidth, matchheight);
 
@@ -2148,7 +2148,5 @@ int loadtextureimage (char* filename, int matchwidth, int matchheight, qboolean 
 
 	memcpy(temp_pixel_storage_pixels, data, image_width * image_height * 4);
 
-	actual_image_height = &image_height;
-	actual_image_width = &image_width;
 	return 1;
 }

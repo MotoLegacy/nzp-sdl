@@ -258,6 +258,20 @@ Loads a model into the cache
 */
 model_t *Mod_LoadModel (model_t *mod, qboolean crash)
 {
+#if ROCKBOX
+    // prevents crashes
+    extern struct mutex snd_mutex;
+    extern int snd_mutex_init;
+
+    if(!snd_mutex_init)
+    {
+        rb->mutex_init(&snd_mutex);
+        snd_mutex_init = 1;
+    }
+
+    rb->mutex_lock(&snd_mutex);
+#endif
+    //printf("loadmodel 1");
 	unsigned *buf;
 	byte	stackbuf[1024];		// avoid dirtying the cache heap
 
@@ -266,44 +280,57 @@ model_t *Mod_LoadModel (model_t *mod, qboolean crash)
 		if (Cache_Check (&mod->cache))
 		{
 			mod->needload = NL_PRESENT;
+#if ROCKBOX
+                        rb->mutex_unlock(&snd_mutex);
+#endif
 			return mod;
 		}
 	}
 	else
 	{
 		if (mod->needload == NL_PRESENT)
-			return mod;
+                {
+#if ROCKBOX
+                    rb->mutex_unlock(&snd_mutex);
+#endif
+                    return mod;
+                }
 	}
 
 //
 // because the world is so huge, load it one piece at a time
 //
 	
+
 //
 // load the file
 //
 	buf = (unsigned *)COM_LoadStackFile (mod->name, stackbuf, sizeof(stackbuf));
-	if (!buf)
-	{
-		// Reload with another .mdl
-		buf = (unsigned *)COM_LoadStackFile("models/missing_model.mdl", stackbuf, sizeof(stackbuf));
-		if (buf)
-		{
-			Con_Printf ("Missing model %s substituted\n", mod->name);
-		}
-		else 
-		{
-			return NULL;	
-		}
-	}
+    if (!buf)
+    {
+        // Reload with another .mdl
+        buf = (unsigned *)COM_LoadStackFile("models/missing_model.mdl", stackbuf, sizeof(stackbuf));
+        if (buf)
+        {
+            Con_Printf ("Missing model %s substituted\n", mod->name);
+        }
+        else 
+        {
+            return NULL;	
+        }
+    }
 	
 //
 // allocate a new model
 //
+        //printf("LoadModel1: %08x (%08x)", buf[0], buf);
+        
 	COM_FileBase (mod->name, loadname);
+        //printf("LoadModel2: %08x (%08x)", buf[0], buf);
 	
 	loadmodel = mod;
 
+        //printf("loadmodel 3");
 //
 // fill it in
 //
@@ -322,10 +349,13 @@ model_t *Mod_LoadModel (model_t *mod, qboolean crash)
 		break;
 	
 	default:
+            //printf("unkn %08x (&=%08x), nat %08x def to brush", LittleLongUnaligned(buf[0]), &buf[0], buf[0]);
 		Mod_LoadBrushModel (mod, buf);
 		break;
 	}
-
+#if ROCKBOX
+        rb->mutex_unlock(&snd_mutex);
+#endif
 	return mod;
 }
 
@@ -1861,6 +1891,7 @@ void * Mod_LoadSpriteGroup (void * pin, mspriteframe_t **ppframe)
 	pspritegroup = Hunk_AllocName (sizeof (mspritegroup_t) +
 				(numframes - 1) * sizeof (pspritegroup->frames[0]), loadname);
 
+
 	pspritegroup->numframes = numframes;
 
 	*ppframe = (mspriteframe_t *)pspritegroup;
@@ -1937,8 +1968,9 @@ void Mod_LoadSpriteModel (model_t *mod, void *buffer)
 //
 // load the frames
 //
-	if (numframes < 1)
+	if (numframes < 1) {
 		Sys_Error ("Mod_LoadSpriteModel: Invalid # of frames: %d\n", numframes);
+	}
 
 	mod->numframes = numframes;
 	mod->flags = 0;

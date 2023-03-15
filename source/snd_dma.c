@@ -169,6 +169,10 @@ void S_Init (void)
 
 	Con_Printf("\nSound Initialization\n");
 
+#ifdef ROCKBOX
+	return;
+#endif
+
 	if (COM_CheckParm("-nosound"))
 		return;
 

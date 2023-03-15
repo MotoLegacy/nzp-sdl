@@ -19,6 +19,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // console.c
 
+#ifdef __LINUX__
 #ifdef NeXT
 #include <libc.h>
 #endif
@@ -26,6 +27,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <unistd.h>
 #endif
 #include <fcntl.h>
+#endif
+
 #include "quakedef.h"
 
 int 		con_linewidth;
@@ -215,7 +218,7 @@ void Con_Init (void)
 	char	temp[MAXGAMEDIRLEN+1];
 	char	*t2 = "/qconsole.log";
 
-	con_debuglog = COM_CheckParm("-condebug");
+	con_debuglog = 1;//COM_CheckParm("-condebug");
 
 	if (con_debuglog)
 	{

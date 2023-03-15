@@ -511,15 +511,45 @@ void Key_Bind_f (void)
 			Con_Printf ("\"%s\" is not bound\n", Cmd_Argv(1) );
 		return;
 	}
+#if ROCKBOX
+
+    bool overridden = false;
+
+    // Rockbox hack to set defaults
+    if(!bind_nooverride)
+    {
+        switch(b)
+        {
+        case K_ENTER:
+            overridden = true;
+            strcpy(cmd, "+attack");
+            break;
+        case 'a':
+            overridden = true;
+            strcpy(cmd, "+switch");
+            break;
+        case 'd':
+            overridden = true;
+            strcpy(cmd, "+reload");
+            break;
+        }
+    }
+
+    if(!overridden)
+#endif
 	
-// copy the rest of the command line
-	cmd[0] = 0;		// start out with a null string
-	for (i=2 ; i< c ; i++)
 	{
-		if (i > 2)
-			strcat (cmd, " ");
-		strcat (cmd, Cmd_Argv(i));
+	// copy the rest of the command line
+		cmd[0] = 0;		// start out with a null string
+		for (i=2 ; i< c ; i++)
+		{
+			if (i > 2)
+				strcat (cmd, " ");
+			strcat (cmd, Cmd_Argv(i));
+		}
+
 	}
+
 
 	Key_SetBinding (b, cmd);
 }

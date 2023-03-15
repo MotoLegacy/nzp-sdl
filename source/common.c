@@ -438,7 +438,7 @@ float Q_atof (const char *str)
 
 void Q_strncpyz (char *dest, char *src, size_t size)
 {
-	strncpy (dest, src, size - 1);
+	Q_strncpy(dest, src, size);
 	dest[size-1] = 0;
 }
 
@@ -1663,15 +1663,34 @@ void COM_LoadPictoCache(char *path, struct cache_user_s *cu, int image_width, in
 
 	free(tmp_buf);
 }
+
+/* ROCKBOX:
+ * This function was NOT originally thread-safe, leading to a race
+ * condition between the Mod_LoadModel and S_LoadSound (which run in
+ * different threads). Fixed with mutex lock. - FW 7/29/19
+ */
+
 // uses temp hunk if larger than bufsize
 byte *COM_LoadStackFile (char *path, void *buffer, int bufsize)
 {
+#if ROCKBOX
+    static struct mutex m;
+    static int init = 0;
+    if(!init)
+    {
+        rb->mutex_init(&m);
+        init = 1;
+    }
+    rb->mutex_lock(&m);
+#endif
 	byte    *buf;
 
 	loadbuf = (byte *)buffer;
 	loadsize = bufsize;
 	buf = COM_LoadFile (path, 4);
-
+#if ROCKBOX
+    rb->mutex_unlock(&m);
+#endif
 	return buf;
 }
 

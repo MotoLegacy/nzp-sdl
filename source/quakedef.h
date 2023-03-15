@@ -19,6 +19,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // quakedef.h -- primary header for client
 
+#define EOF 	-1
+
 #define qtrue 1
 #define qfalse 0
 
@@ -58,6 +60,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define	GAMENAME	"nzp"
 
+#ifndef ROCKBOX
 #include <math.h>
 #include <assert.h>
 #include <string.h>
@@ -68,6 +71,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <setjmp.h>
 #include <stdbool.h>
 #include <ctype.h>
+#else 
+#include "SDL.h"
+#include <stdarg.h>
+#include <setjmp.h>
+#include "rockboxdef.h"
+#endif
 
 #if id386
 #define UNALIGNED_OK	1	// set to 0 if unaligned accesses are not supported
@@ -271,7 +280,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	MAX_SCOREBOARD		16
 #define	MAX_SCOREBOARDNAME	32
 
-#define	SOUND_CHANNELS		8
+//#define	SOUND_CHANNELS		8 // naievil -- rockbox dislikes this
 
 // This makes anyone on id's net privileged
 // Use for multiplayer testing only - VERY dangerous!!!
@@ -304,7 +313,7 @@ typedef struct
 #include "protocol.h"
 #include "cmd.h"
 #include "sbar.h"
-#include "sound.h"
+#include "quakesound.h"
 #include "render.h"
 #include "client.h"
 #include "progs.h"
@@ -324,6 +333,9 @@ typedef struct
 
 #include "cl_hud.h"
 
+#if !__LINUX__
+#include "plugin.h" // rockbox plugin
+#endif
 
 //=============================================================================
 

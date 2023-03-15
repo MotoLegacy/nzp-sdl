@@ -273,7 +273,7 @@ CCAS = gcc
 CCASDEPMODE = depmode=gcc3
 CCASFLAGS = -g -O2
 CCDEPMODE = depmode=gcc3
-CFLAGS = -g -O2 -ffast-math -funroll-loops -fomit-frame-pointer -fexpensive-optimizations -D_GNU_SOURCE=1 -D_REENTRANT -I/usr/include/SDL
+CFLAGS = -g -O2 -D __LINUX__ -ffast-math -funroll-loops -fomit-frame-pointer -fexpensive-optimizations -D_GNU_SOURCE=1 -D_REENTRANT -I/usr/include/SDL
 CPP = gcc -E
 CPPFLAGS =  -DSDL
 CYGPATH_W = echo

@@ -89,6 +89,12 @@ void ResampleSfx (sfx_t *sfx, int inrate, int inwidth, byte *data)
 
 //=============================================================================
 
+#ifdef ROCKBOX
+// used to synchronize with Mod_LoadModel, which causes crashes if not done.
+struct mutex snd_mutex;
+int snd_mutex_init = 0;
+#endif
+
 /*
 ==============
 S_LoadSound
@@ -109,6 +115,15 @@ sfxcache_t *S_LoadSound (sfx_t *s)
 	if (sc)
 		return sc;
 
+#ifdef ROCKBOX
+    if(!snd_mutex_init)
+    {
+        rb->mutex_init(&snd_mutex);
+        snd_mutex_init = 1;
+    }
+    rb->mutex_lock(&snd_mutex);
+#endif
+
 //Con_Printf ("S_LoadSound: %x\n", (int)stackbuf);
 // load it in
     Q_strcpy(namebuffer, "sound/");
@@ -120,6 +135,9 @@ sfxcache_t *S_LoadSound (sfx_t *s)
 
 	if (!data)
 	{
+#ifdef ROCKBOX
+		rb->mutex_unlock(&snd_mutex);
+#endif
 		Con_Printf ("Couldn't load %s\n", namebuffer);
 		return NULL;
 	}
@@ -127,6 +145,9 @@ sfxcache_t *S_LoadSound (sfx_t *s)
 	info = GetWavinfo (s->name, data, com_filesize);
 	if (info.channels != 1)
 	{
+#ifdef ROCKBOX
+        rb->mutex_unlock(&snd_mutex);
+#endif
 		Con_Printf ("%s is a stereo sample\n",s->name);
 		return NULL;
 	}
@@ -137,8 +158,12 @@ sfxcache_t *S_LoadSound (sfx_t *s)
 	len = len * info.width * info.channels;
 
 	sc = Cache_Alloc ( &s->cache, len + sizeof(sfxcache_t), s->name);
-	if (!sc)
+	if (!sc) {
+#ifdef ROCKBOX
+        rb->mutex_unlock(&snd_mutex);
+#endif
 		return NULL;
+	}
 	
 	sc->length = info.samples;
 	sc->loopstart = info.loopstart;
@@ -148,6 +173,9 @@ sfxcache_t *S_LoadSound (sfx_t *s)
 
 	ResampleSfx (s, sc->speed, sc->width, data + info.dataofs);
 
+#ifdef ROCKBOX
+    rb->mutex_unlock(&snd_mutex);
+#endif
 	return sc;
 }
 

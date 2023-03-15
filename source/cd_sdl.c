@@ -394,6 +394,10 @@ int CDAudio_Init(void)
 {
 	int	i, x, sdl_num_drives;
 
+#ifdef ROCKBOX
+	return -1;
+#endif
+
 	if (COM_CheckParm("-nocdaudio"))
 		return -1;
 

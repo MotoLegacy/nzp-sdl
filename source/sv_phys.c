@@ -92,12 +92,12 @@ void SV_CheckVelocity (edict_t *ent)
 	{
 		if (IS_NAN(ent->v.velocity[i]))
 		{
-			Con_Printf ("Got a NaN velocity on %s\n", PR_GetString(ent->v.classname));
+			Con_Printf ("Got a NaN velocity on %s\n", pr_strings + ent->v.classname);
 			ent->v.velocity[i] = 0;
 		}
 		if (IS_NAN(ent->v.origin[i]))
 		{
-			Con_Printf ("Got a NaN origin on %s\n", PR_GetString(ent->v.classname));
+			Con_Printf ("Got a NaN origin on %s\n", pr_strings + ent->v.classname);
 			ent->v.origin[i] = 0;
 		}
 		if (ent->v.velocity[i] > sv_maxvelocity.value)
@@ -139,18 +139,6 @@ qboolean SV_RunThink (edict_t *ent)
 	pr_global_struct->self = EDICT_TO_PROG(ent);
 	pr_global_struct->other = EDICT_TO_PROG(sv.edicts);
 	PR_ExecuteProgram (ent->v.think);
-
-//johnfitz -- PROTOCOL_FITZQUAKE
-//capture interval to nextthink here and send it to client for better
-//lerp timing, but only if interval is not 0.1 (which client assumes)
-	ent->sendinterval = false;
-	if (!ent->free && ent->v.nextthink && (ent->v.movetype == MOVETYPE_STEP || ent->v.frame != oldframe))
-	{
-		i = Q_rint((ent->v.nextthink-thinktime)*255);
-		if (i >= 0 && i < 256 && i != 25 && i != 26) //25 and 26 are close enough to 0.1 to not send
-			ent->sendinterval = true;
-	}
-//johnfitz
 
 	return !ent->free;
 }

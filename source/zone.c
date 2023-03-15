@@ -1,6 +1,5 @@
 /*
-Copyright (C) 1996-2001 Id Software, Inc.
-Copyright (C) 2002-2009 John Fitzgibbons and others
+Copyright (C) 1996-1997 Id Software, Inc.
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -9,7 +8,7 @@ of the License, or (at your option) any later version.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
 
 See the GNU General Public License for more details.
 
@@ -18,11 +17,11 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// zone.c
+// Z_zone.c
 
 #include "quakedef.h"
 
-#define	DYNAMIC_SIZE	256*1024 //johnfitz: was 48k
+#define	DYNAMIC_SIZE	0xc000
 
 #define	ZONEID	0x1d4a11
 #define MINFRAGMENT	64
@@ -46,6 +45,10 @@ typedef struct
 void Cache_FreeLow (int new_low_hunk);
 void Cache_FreeHigh (int new_high_hunk);
 
+// prevent race conditions
+#if ROCKBOX
+static struct mutex zone_mutex;
+#endif
 
 /*
 ==============================================================================
@@ -64,6 +67,39 @@ all big things are allocated on the hunk.
 
 memzone_t	*mainzone;
 
+void Z_ClearZone (memzone_t *zone, int size);
+
+
+/*
+========================
+Z_ClearZone
+========================
+*/
+void Z_ClearZone (memzone_t *zone, int size)
+{
+#if ROCKBOX
+        rb->mutex_lock(&zone_mutex);
+#endif
+	memblock_t	*block;
+	
+// set the entire zone to one free block
+
+	zone->blocklist.next = zone->blocklist.prev = block =
+		(memblock_t *)( (byte *)zone + sizeof(memzone_t) );
+	zone->blocklist.tag = 1;	// in use block
+	zone->blocklist.id = 0;
+	zone->blocklist.size = 0;
+	zone->rover = block;
+	
+	block->prev = block->next = &zone->blocklist;
+	block->tag = 0;			// free block
+	block->id = ZONEID;
+	block->size = size - sizeof(memzone_t);
+#if ROCKBOX
+        rb->mutex_unlock(&zone_mutex);
+#endif
+}
+
 
 /*
 ========================
@@ -72,8 +108,12 @@ Z_Free
 */
 void Z_Free (void *ptr)
 {
-	memblock_t	*block, *other;
+#if ROCKBOX
+        rb->mutex_lock(&zone_mutex);
+#endif
 
+	memblock_t	*block, *other;
+	
 	if (!ptr)
 		Sys_Error ("Z_Free: NULL pointer");
 
@@ -84,7 +124,7 @@ void Z_Free (void *ptr)
 		Sys_Error ("Z_Free: freed a freed pointer");
 
 	block->tag = 0;		// mark as free
-
+	
 	other = block->prev;
 	if (!other->tag)
 	{	// merge with previous free block
@@ -95,7 +135,7 @@ void Z_Free (void *ptr)
 			mainzone->rover = other;
 		block = other;
 	}
-
+	
 	other = block->next;
 	if (!other->tag)
 	{	// merge the next free block onto the end
@@ -105,6 +145,10 @@ void Z_Free (void *ptr)
 		if (other == mainzone->rover)
 			mainzone->rover = block;
 	}
+#if ROCKBOX
+        rb->mutex_unlock(&zone_mutex);
+#endif
+
 }
 
 
@@ -116,7 +160,7 @@ Z_Malloc
 void *Z_Malloc (int size)
 {
 	void	*buf;
-
+	
 Z_CheckHeap ();	// DEBUG
 	buf = Z_TagMalloc (size, 1);
 	if (!buf)
@@ -126,43 +170,12 @@ Z_CheckHeap ();	// DEBUG
 	return buf;
 }
 
-/*
-========================
-Z_Realloc
-========================
-*/
-void *Z_Realloc(void *ptr, int size)
-{
-	int old_size;
-	void *old_ptr;
-	memblock_t *block;
-
-	if (!ptr)
-		return Z_Malloc (size);
-
-	block = (memblock_t *) ((byte *) ptr - sizeof (memblock_t));
-	if (block->id != ZONEID)
-		Sys_Error ("Z_Realloc: realloced a pointer without ZONEID");
-	if (block->tag == 0)
-		Sys_Error ("Z_Realloc: realloced a freed pointer");
-
-	old_size = block->size;
-	old_ptr = ptr;
-
-	Z_Free (ptr);
-	ptr = Z_TagMalloc (size, 1);
-	if (!ptr)
-		Sys_Error ("Z_Realloc: failed on allocation of %i bytes", size);
-
-	if (ptr != old_ptr)
-		memmove (ptr, old_ptr, min (old_size, size));
-
-	return ptr;
-}
-
-
 void *Z_TagMalloc (int size, int tag)
 {
+#if ROCKBOX
+        rb->mutex_lock(&zone_mutex);
+#endif
+
 	int		extra;
 	memblock_t	*start, *rover, *new, *base;
 
@@ -176,20 +189,26 @@ void *Z_TagMalloc (int size, int tag)
 	size += sizeof(memblock_t);	// account for size of block header
 	size += 4;					// space for memory trash tester
 	size = (size + 7) & ~7;		// align to 8-byte boundary
-
+	
 	base = rover = mainzone->rover;
 	start = base->prev;
-
+	
 	do
 	{
 		if (rover == start)	// scaned all the way around the list
+                {
+#if ROCKBOX
+                    rb->mutex_unlock(&zone_mutex);
+#endif
+
 			return NULL;
+                }
 		if (rover->tag)
 			base = rover = rover->next;
 		else
 			rover = rover->next;
 	} while (base->tag || base->size < size);
-
+	
 //
 // found a block big enough
 //
@@ -206,15 +225,18 @@ void *Z_TagMalloc (int size, int tag)
 		base->next = new;
 		base->size = size;
 	}
-
+	
 	base->tag = tag;				// no longer a free block
-
+	
 	mainzone->rover = base->next;	// next allocation will start looking here
-
+	
 	base->id = ZONEID;
 
 // marker for memory trash testing
 	*(int *)((byte *)base + base->size - 4) = ZONEID;
+#if ROCKBOX
+        rb->mutex_unlock(&zone_mutex);
+#endif
 
 	return (void *) ((byte *)base + sizeof(memblock_t));
 }
@@ -227,17 +249,21 @@ Z_Print
 */
 void Z_Print (memzone_t *zone)
 {
+#if ROCKBOX
+        rb->mutex_lock(&zone_mutex);
+#endif
+
 	memblock_t	*block;
-
+	
 	Con_Printf ("zone size: %i  location: %p\n",mainzone->size,mainzone);
-
+	
 	for (block = zone->blocklist.next ; ; block = block->next)
 	{
 		Con_Printf ("block:%p    size:%7i    tag:%3i\n",
 			block, block->size, block->tag);
-
+		
 		if (block->next == &zone->blocklist)
-			break;			// all blocks have been hit
+			break;			// all blocks have been hit	
 		if ( (byte *)block + block->size != (byte *)block->next)
 			Con_Printf ("ERROR: block size does not touch the next block\n");
 		if ( block->next->prev != block)
@@ -245,6 +271,10 @@ void Z_Print (memzone_t *zone)
 		if (!block->tag && !block->next->tag)
 			Con_Printf ("ERROR: two consecutive free blocks\n");
 	}
+#if ROCKBOX
+        rb->mutex_unlock(&zone_mutex);
+#endif
+
 }
 
 
@@ -255,12 +285,16 @@ Z_CheckHeap
 */
 void Z_CheckHeap (void)
 {
-	memblock_t	*block;
+#if ROCKBOX
+        rb->mutex_lock(&zone_mutex);
+#endif
 
+	memblock_t	*block;
+	
 	for (block = mainzone->blocklist.next ; ; block = block->next)
 	{
 		if (block->next == &mainzone->blocklist)
-			break;			// all blocks have been hit
+			break;			// all blocks have been hit	
 		if ( (byte *)block + block->size != (byte *)block->next)
 			Sys_Error ("Z_CheckHeap: block size does not touch the next block\n");
 		if ( block->next->prev != block)
@@ -268,6 +302,10 @@ void Z_CheckHeap (void)
 		if (!block->tag && !block->next->tag)
 			Sys_Error ("Z_CheckHeap: two consecutive free blocks\n");
 	}
+#if ROCKBOX
+        rb->mutex_unlock(&zone_mutex);
+#endif
+
 }
 
 //============================================================================
@@ -278,9 +316,7 @@ typedef struct
 {
 	int		sentinal;
 	int		size;		// including sizeof(hunk_t), -1 = not allocated
-#ifndef OPT_WORSEHUNKDEBUG
 	char	name[8];
-#endif // OPT_WORSEHUNKDEBUG
 } hunk_t;
 
 byte	*hunk_base;
@@ -303,16 +339,24 @@ Run consistancy and sentinal trahing checks
 */
 void Hunk_Check (void)
 {
-	hunk_t	*h;
+#if ROCKBOX
+        rb->mutex_lock(&zone_mutex);
+#endif
 
+	hunk_t	*h;
+	
 	for (h = (hunk_t *)hunk_base ; (byte *)h != hunk_base + hunk_low_used ; )
 	{
 		if (h->sentinal != HUNK_SENTINAL)
 			Sys_Error ("Hunk_Check: trahsed sentinal");
-		if (h->size < sizeof(hunk_t) || h->size + (byte *)h - hunk_base > hunk_size)
+		if (h->size < 8 || h->size + (byte *)h - hunk_base > hunk_size)
 			Sys_Error ("Hunk_Check: bad size");
 		h = (hunk_t *)((byte *)h+h->size);
 	}
+#if ROCKBOX
+        rb->mutex_unlock(&zone_mutex);
+#endif
+
 }
 
 /*
@@ -325,6 +369,10 @@ Otherwise, allocations with the same name will be totaled up before printing.
 */
 void Hunk_Print (qboolean all)
 {
+#if ROCKBOX
+        rb->mutex_lock(&zone_mutex);
+#endif
+
 	hunk_t	*h, *next, *endlow, *starthigh, *endhigh;
 	int		count, sum;
 	int		totalblocks;
@@ -334,7 +382,7 @@ void Hunk_Print (qboolean all)
 	count = 0;
 	sum = 0;
 	totalblocks = 0;
-
+	
 	h = (hunk_t *)hunk_base;
 	endlow = (hunk_t *)(hunk_base + hunk_low_used);
 	starthigh = (hunk_t *)(hunk_base + hunk_size - hunk_high_used);
@@ -355,7 +403,7 @@ void Hunk_Print (qboolean all)
 			Con_Printf ("-------------------------\n");
 			h = starthigh;
 		}
-
+		
 	//
 	// if totally done, break
 	//
@@ -367,9 +415,9 @@ void Hunk_Print (qboolean all)
 	//
 		if (h->sentinal != HUNK_SENTINAL)
 			Sys_Error ("Hunk_Check: trahsed sentinal");
-		if (h->size < sizeof(hunk_t) || h->size + (byte *)h - hunk_base > hunk_size)
+		if (h->size < 16 || h->size + (byte *)h - hunk_base > hunk_size)
 			Sys_Error ("Hunk_Check: bad size");
-
+			
 		next = (hunk_t *)((byte *)h+h->size);
 		count++;
 		totalblocks++;
@@ -378,20 +426,14 @@ void Hunk_Print (qboolean all)
 	//
 	// print the single block
 	//
-#ifndef OPT_WORSEHUNKDEBUG
 		memcpy (name, h->name, 8);
 		if (all)
 			Con_Printf ("%8p :%8i %8s\n",h, h->size, name);
-#else
-		if (all)
-			Con_Printf ("%8p :%8i unknown (compiled with OPT_WORSEHUNKDEBUG)\n",h, h->size);
-#endif // OPT_WORSEHUNKDEBUG
-
+			
 	//
 	// print the total
 	//
-#ifndef OPT_WORSEHUNKDEBUG
-		if (next == endlow || next == endhigh ||
+		if (next == endlow || next == endhigh || 
 		strncmp (h->name, next->name, 8) )
 		{
 			if (!all)
@@ -399,24 +441,16 @@ void Hunk_Print (qboolean all)
 			count = 0;
 			sum = 0;
 		}
-#endif // OPT_WORSEHUNKDEBUG
 
 		h = next;
 	}
 
 	Con_Printf ("-------------------------\n");
 	Con_Printf ("%8i total blocks\n", totalblocks);
+#if ROCKBOX
+        rb->mutex_unlock(&zone_mutex);
+#endif
 
-}
-
-/*
-===================
-Hunk_Print_f -- johnfitz -- console command to call hunk_print
-===================
-*/
-void Hunk_Print_f (void)
-{
-	Hunk_Print (false);
 }
 
 /*
@@ -426,37 +460,38 @@ Hunk_AllocName
 */
 void *Hunk_AllocName (int size, char *name)
 {
-	hunk_t	*h;
+#if ROCKBOX
+        rb->mutex_lock(&zone_mutex);
+#endif
 
+	hunk_t	*h;
+	
 #ifdef PARANOID
 	Hunk_Check ();
 #endif
 
 	if (size < 0)
 		Sys_Error ("Hunk_Alloc: bad size: %i", size);
-
-#ifdef OPT_WORSEHUNKDEBUG
+		
 	size = sizeof(hunk_t) + ((size+7)&~7);
-#else
-	size = sizeof(hunk_t) + ((size+15)&~15);
-#endif // OPT_WORSEHUNKDEBUG
 
 	if (hunk_size - hunk_low_used - hunk_high_used < size)
 		Sys_Error ("Hunk_Alloc: failed on %i bytes",size);
-
+	
 	h = (hunk_t *)(hunk_base + hunk_low_used);
 	hunk_low_used += size;
 
 	Cache_FreeLow (hunk_low_used);
 
 	memset (h, 0, size);
-
+	
 	h->size = size;
 	h->sentinal = HUNK_SENTINAL;
-
-#ifndef OPT_WORSEHUNKDEBUG
-	Q_strncpy (h->name, name, 8);
-#endif // OPT_WORSEHUNKDEBUG
+	//Q_strncpy (h->name, name, 8);
+	
+#if ROCKBOX
+        rb->mutex_unlock(&zone_mutex);
+#endif
 
 	return (void *)(h+1);
 }
@@ -473,30 +508,60 @@ void *Hunk_Alloc (int size)
 
 int	Hunk_LowMark (void)
 {
-	return hunk_low_used;
+#if ROCKBOX
+        rb->mutex_lock(&zone_mutex);
+#endif
+
+	int x = hunk_low_used;
+#if ROCKBOX
+        rb->mutex_unlock(&zone_mutex);
+#endif
+
+        return x;
 }
 
 void Hunk_FreeToLowMark (int mark)
 {
+#if ROCKBOX
+        rb->mutex_lock(&zone_mutex);
+#endif
+
 	if (mark < 0 || mark > hunk_low_used)
 		Sys_Error ("Hunk_FreeToLowMark: bad mark %i", mark);
 	memset (hunk_base + mark, 0, hunk_low_used - mark);
 	hunk_low_used = mark;
+#if ROCKBOX
+        rb->mutex_unlock(&zone_mutex);
+#endif
+
 }
 
 int	Hunk_HighMark (void)
 {
+#if ROCKBOX
+        rb->mutex_lock(&zone_mutex);
+#endif
+
 	if (hunk_tempactive)
 	{
 		hunk_tempactive = false;
 		Hunk_FreeToHighMark (hunk_tempmark);
 	}
 
-	return hunk_high_used;
+	int x = hunk_high_used;
+#if ROCKBOX
+        rb->mutex_unlock(&zone_mutex);
+#endif
+
+        return x;
 }
 
 void Hunk_FreeToHighMark (int mark)
 {
+#if ROCKBOX
+        rb->mutex_lock(&zone_mutex);
+#endif
+
 	if (hunk_tempactive)
 	{
 		hunk_tempactive = false;
@@ -506,6 +571,10 @@ void Hunk_FreeToHighMark (int mark)
 		Sys_Error ("Hunk_FreeToHighMark: bad mark %i", mark);
 	memset (hunk_base + hunk_size - hunk_high_used, 0, hunk_high_used - mark);
 	hunk_high_used = mark;
+#if ROCKBOX
+        rb->mutex_unlock(&zone_mutex);
+#endif
+
 }
 
 
@@ -516,6 +585,10 @@ Hunk_HighAllocName
 */
 void *Hunk_HighAllocName (int size, char *name)
 {
+#if ROCKBOX
+        rb->mutex_lock(&zone_mutex);
+#endif
+
 	hunk_t	*h;
 
 	if (size < 0)
@@ -536,6 +609,10 @@ void *Hunk_HighAllocName (int size, char *name)
 	if (hunk_size - hunk_low_used - hunk_high_used < size)
 	{
 		Con_Printf ("Hunk_HighAlloc: failed on %i bytes\n",size);
+#if ROCKBOX
+                rb->mutex_unlock(&zone_mutex);
+#endif
+
 		return NULL;
 	}
 
@@ -547,10 +624,10 @@ void *Hunk_HighAllocName (int size, char *name)
 	memset (h, 0, size);
 	h->size = size;
 	h->sentinal = HUNK_SENTINAL;
-
-#ifndef OPT_WORSEHUNKDEBUG
-	Q_strncpy (h->name, name, 8);
-#endif // OPT_WORSEHUNKDEBUG
+	//Q_strncpy (h->name, name, 8);
+#if ROCKBOX
+        rb->mutex_unlock(&zone_mutex);
+#endif
 
 	return (void *)(h+1);
 }
@@ -565,21 +642,28 @@ Return space from the top of the hunk
 */
 void *Hunk_TempAlloc (int size)
 {
+#if ROCKBOX
+        rb->mutex_lock(&zone_mutex);
+#endif
+
 	void	*buf;
 
 	size = (size+15)&~15;
-
+	
 	if (hunk_tempactive)
 	{
 		Hunk_FreeToHighMark (hunk_tempmark);
 		hunk_tempactive = false;
 	}
-
+	
 	hunk_tempmark = Hunk_HighMark ();
 
 	buf = Hunk_HighAllocName (size, "temp");
 
 	hunk_tempactive = true;
+#if ROCKBOX
+        rb->mutex_unlock(&zone_mutex);
+#endif
 
 	return buf;
 }
@@ -596,11 +680,8 @@ typedef struct cache_system_s
 {
 	int						size;		// including this header
 	cache_user_t			*user;
-#ifndef OPT_WORSEHUNKDEBUG
-	char					name[16];
-#endif // OPT_WORSEHUNKDEBUG
 	struct cache_system_s	*prev, *next;
-	struct cache_system_s	*lru_prev, *lru_next;	// for LRU flushing
+	struct cache_system_s	*lru_prev, *lru_next;	// for LRU flushing	
 } cache_system_t;
 
 cache_system_t *Cache_TryAlloc (int size, qboolean nobottom);
@@ -614,6 +695,10 @@ Cache_Move
 */
 void Cache_Move ( cache_system_t *c)
 {
+#if ROCKBOX
+        rb->mutex_lock(&zone_mutex);
+#endif
+
 	cache_system_t		*new;
 
 // we are clearing up space at the bottom, so only allocate it late
@@ -624,9 +709,7 @@ void Cache_Move ( cache_system_t *c)
 
 		Q_memcpy ( new+1, c+1, c->size - sizeof(cache_system_t) );
 		new->user = c->user;
-#ifndef OPT_WORSEHUNKDEBUG
-		Q_memcpy (new->name, c->name, sizeof(new->name));
-#endif // OPT_WORSEHUNKDEBUG
+		//Q_memcpy (new->name, c->name, sizeof(new->name));
 		Cache_Free (c->user);
 		new->user->data = (void *)(new+1);
 	}
@@ -634,8 +717,12 @@ void Cache_Move ( cache_system_t *c)
 	{
 //		Con_Printf ("cache_move failed\n");
 
-		Cache_Free (c->user);
+		Cache_Free (c->user);		// tough luck...
 	}
+#if ROCKBOX
+        rb->mutex_unlock(&zone_mutex);
+#endif
+
 }
 
 /*
@@ -647,15 +734,30 @@ Throw things out until the hunk can be expanded to the given point
 */
 void Cache_FreeLow (int new_low_hunk)
 {
-	cache_system_t	*c;
+#if ROCKBOX
+        rb->mutex_lock(&zone_mutex);
+#endif
 
+	cache_system_t	*c;
+	
 	while (1)
 	{
 		c = cache_head.next;
 		if (c == &cache_head)
+                {
+#if ROCKBOX
+                        rb->mutex_unlock(&zone_mutex);
+#endif
 			return;		// nothing in cache at all
+                }
 		if ((byte *)c >= hunk_base + new_low_hunk)
+                {
+#if ROCKBOX
+                        rb->mutex_unlock(&zone_mutex);
+#endif
+
 			return;		// there is space to grow the hunk
+                }
 		Cache_Move ( c );	// reclaim the space
 	}
 }
@@ -669,16 +771,32 @@ Throw things out until the hunk can be expanded to the given point
 */
 void Cache_FreeHigh (int new_high_hunk)
 {
-	cache_system_t	*c, *prev;
+#if ROCKBOX
+        rb->mutex_lock(&zone_mutex);
+#endif
 
+	cache_system_t	*c, *prev;
+	
 	prev = NULL;
 	while (1)
 	{
 		c = cache_head.prev;
 		if (c == &cache_head)
+                {
+#if ROCKBOX
+                        rb->mutex_unlock(&zone_mutex);
+#endif
+
 			return;		// nothing in cache at all
+                }
 		if ( (byte *)c + c->size <= hunk_base + hunk_size - new_high_hunk)
+                {
+#if ROCKBOX
+                        rb->mutex_unlock(&zone_mutex);
+#endif
+
 			return;		// there is space to grow the hunk
+                }
 		if (c == prev)
 			Cache_Free (c->user);	// didn't move out of the way
 		else
@@ -691,17 +809,29 @@ void Cache_FreeHigh (int new_high_hunk)
 
 void Cache_UnlinkLRU (cache_system_t *cs)
 {
+#if ROCKBOX
+        rb->mutex_lock(&zone_mutex);
+#endif
+
 	if (!cs->lru_next || !cs->lru_prev)
 		Sys_Error ("Cache_UnlinkLRU: NULL link");
 
 	cs->lru_next->lru_prev = cs->lru_prev;
 	cs->lru_prev->lru_next = cs->lru_next;
-
+	
 	cs->lru_prev = cs->lru_next = NULL;
+#if ROCKBOX
+        rb->mutex_unlock(&zone_mutex);
+#endif
+
 }
 
 void Cache_MakeLRU (cache_system_t *cs)
 {
+#if ROCKBOX
+        rb->mutex_lock(&zone_mutex);
+#endif
+
 	if (cs->lru_next || cs->lru_prev)
 		Sys_Error ("Cache_MakeLRU: active link");
 
@@ -709,6 +839,10 @@ void Cache_MakeLRU (cache_system_t *cs)
 	cs->lru_next = cache_head.lru_next;
 	cs->lru_prev = &cache_head;
 	cache_head.lru_next = cs;
+#if ROCKBOX
+        rb->mutex_unlock(&zone_mutex);
+#endif
+
 }
 
 /*
@@ -721,8 +855,12 @@ Size should already include the header and padding
 */
 cache_system_t *Cache_TryAlloc (int size, qboolean nobottom)
 {
-	cache_system_t	*cs, *new;
+#if ROCKBOX
+        rb->mutex_lock(&zone_mutex);
+#endif
 
+	cache_system_t	*cs, *new;
+	
 // is the cache completely empty?
 
 	if (!nobottom && cache_head.prev == &cache_head)
@@ -736,16 +874,20 @@ cache_system_t *Cache_TryAlloc (int size, qboolean nobottom)
 
 		cache_head.prev = cache_head.next = new;
 		new->prev = new->next = &cache_head;
-
+		
 		Cache_MakeLRU (new);
+#if ROCKBOX
+                rb->mutex_unlock(&zone_mutex);
+#endif
+
 		return new;
 	}
-
+	
 // search from the bottom up for space
 
 	new = (cache_system_t *) (hunk_base + hunk_low_used);
 	cs = cache_head.next;
-
+	
 	do
 	{
 		if (!nobottom || cs != cache_head.next)
@@ -754,39 +896,49 @@ cache_system_t *Cache_TryAlloc (int size, qboolean nobottom)
 			{	// found space
 				memset (new, 0, sizeof(*new));
 				new->size = size;
-
+				
 				new->next = cs;
 				new->prev = cs->prev;
 				cs->prev->next = new;
 				cs->prev = new;
-
+				
 				Cache_MakeLRU (new);
+#if ROCKBOX
+                                rb->mutex_unlock(&zone_mutex);
+#endif
 
 				return new;
 			}
 		}
 
-	// continue looking
+	// continue looking		
 		new = (cache_system_t *)((byte *)cs + cs->size);
 		cs = cs->next;
 
 	} while (cs != &cache_head);
-
+	
 // try to allocate one at the very end
 	if ( hunk_base + hunk_size - hunk_high_used - (byte *)new >= size)
 	{
 		memset (new, 0, sizeof(*new));
 		new->size = size;
-
+		
 		new->next = &cache_head;
 		new->prev = cache_head.prev;
 		cache_head.prev->next = new;
 		cache_head.prev = new;
-
+		
 		Cache_MakeLRU (new);
+#if ROCKBOX
+                rb->mutex_unlock(&zone_mutex);
+#endif
 
 		return new;
 	}
+	
+#if ROCKBOX
+        rb->mutex_unlock(&zone_mutex);
+#endif
 
 	return NULL;		// couldn't allocate
 }
@@ -800,8 +952,16 @@ Throw everything out, so new data will be demand cached
 */
 void Cache_Flush (void)
 {
+#if ROCKBOX
+        rb->mutex_lock(&zone_mutex);
+#endif
+
 	while (cache_head.next != &cache_head)
-		Cache_Free ( cache_head.next->user); // reclaim the space
+		Cache_Free ( cache_head.next->user );	// reclaim the space
+#if ROCKBOX
+        rb->mutex_unlock(&zone_mutex);
+#endif
+
 }
 
 
@@ -817,11 +977,8 @@ void Cache_Print (void)
 
 	for (cd = cache_head.next ; cd != &cache_head ; cd = cd->next)
 	{
-#ifndef OPT_WORSEHUNKDEBUG
-		Con_Printf ("%8i : %s\n", cd->size, cd->name);
-#else
-		Con_Printf ("%8i : unknown (compiled with OPT_WORSEHUNKDEBUG)\n", cd->size);
-#endif // OPT_WORSEHUNKDEBUG
+		//Con_Printf ("%8i : %s\n", cd->size, cd->name);
+		Con_Printf ("%8i\n", cd->size);
 	}
 }
 
@@ -869,6 +1026,10 @@ Frees the memory and removes it from the LRU list
 */
 void Cache_Free (cache_user_t *c)
 {
+#if ROCKBOX
+        rb->mutex_lock(&zone_mutex);
+#endif
+
 	cache_system_t	*cs;
 
 	if (!c->data)
@@ -883,6 +1044,10 @@ void Cache_Free (cache_user_t *c)
 	c->data = NULL;
 
 	Cache_UnlinkLRU (cs);
+#if ROCKBOX
+        rb->mutex_unlock(&zone_mutex);
+#endif
+
 }
 
 
@@ -894,16 +1059,30 @@ Cache_Check
 */
 void *Cache_Check (cache_user_t *c)
 {
+#if ROCKBOX
+        rb->mutex_lock(&zone_mutex);
+#endif
+
 	cache_system_t	*cs;
 
 	if (!c->data)
+        {
+#if ROCKBOX
+            rb->mutex_unlock(&zone_mutex);
+#endif
+
 		return NULL;
+        }
 
 	cs = ((cache_system_t *)c->data) - 1;
 
 // move to head of LRU
 	Cache_UnlinkLRU (cs);
 	Cache_MakeLRU (cs);
+	
+#if ROCKBOX
+        rb->mutex_unlock(&zone_mutex);
+#endif
 
 	return c->data;
 }
@@ -916,65 +1095,47 @@ Cache_Alloc
 */
 void *Cache_Alloc (cache_user_t *c, int size, char *name)
 {
+#if ROCKBOX
+        rb->mutex_lock(&zone_mutex);
+#endif
+
 	cache_system_t	*cs;
 
 	if (c->data)
 		Sys_Error ("Cache_Alloc: allready allocated");
-
+	
 	if (size <= 0)
 		Sys_Error ("Cache_Alloc: size %i", size);
 
-#ifdef OPT_WORSEHUNKDEBUG
-	size = (size + sizeof(cache_system_t));
-#else
 	size = (size + sizeof(cache_system_t) + 15) & ~15;
-#endif // OPT_WORSEHUNKDEBUG
 
-// find memory for it
+// find memory for it	
 	while (1)
 	{
 		cs = Cache_TryAlloc (size, false);
 		if (cs)
 		{
-#ifndef OPT_WORSEHUNKDEBUG
-			strncpy (cs->name, name, sizeof(cs->name)-1);
-#endif // OPT_WORSEHUNKDEBUG
+		//	strncpy (cs->name, name, sizeof(cs->name)-1);
 			c->data = (void *)(cs+1);
 			cs->user = c;
 			break;
 		}
-
+	
 	// free the least recently used cahedat
 		if (cache_head.lru_prev == &cache_head)
-			Sys_Error ("Cache_Alloc: out of memory"); // not enough memory at all
-
-		Cache_Free (cache_head.lru_prev->user);
-	}
+			Sys_Error ("Cache_Alloc: out of memory");
+													// not enough memory at all
+		Cache_Free ( cache_head.lru_prev->user );
+	} 
+#if ROCKBOX
+        rb->mutex_unlock(&zone_mutex);
+#endif
 
 	return Cache_Check (c);
 }
 
 //============================================================================
 
-
-static void Memory_InitZone (memzone_t *zone, int size)
-{
-	memblock_t	*block;
-
-// set the entire zone to one free block
-
-	zone->blocklist.next = zone->blocklist.prev = block =
-		(memblock_t *)( (byte *)zone + sizeof(memzone_t) );
-	zone->blocklist.tag = 1;	// in use block
-	zone->blocklist.id = 0;
-	zone->blocklist.size = 0;
-	zone->rover = block;
-
-	block->prev = block->next = &zone->blocklist;
-	block->tag = 0;			// free block
-	block->id = ZONEID;
-	block->size = size - sizeof(memzone_t);
-}
 
 /*
 ========================
@@ -983,6 +1144,10 @@ Memory_Init
 */
 void Memory_Init (void *buf, int size)
 {
+#if ROCKBOX
+    rb->mutex_init(&zone_mutex);
+#endif
+
 	int p;
 	int zonesize = DYNAMIC_SIZE;
 
@@ -990,7 +1155,7 @@ void Memory_Init (void *buf, int size)
 	hunk_size = size;
 	hunk_low_used = 0;
 	hunk_high_used = 0;
-
+	
 	Cache_Init ();
 	p = COM_CheckParm ("-zone");
 	if (p)
@@ -1001,8 +1166,39 @@ void Memory_Init (void *buf, int size)
 			Sys_Error ("Memory_Init: you must specify a size in KB after -zone");
 	}
 	mainzone = Hunk_AllocName (zonesize, "zone" );
-	Memory_InitZone (mainzone, zonesize);
-
-	Cmd_AddCommand ("hunk_print", Hunk_Print_f); //johnfitz
+	Z_ClearZone (mainzone, zonesize);
 }
 
+/*
+========================
+Z_Realloc
+========================
+*/
+void *Z_Realloc(void *ptr, int size)
+{
+	int old_size;
+	void *old_ptr;
+	memblock_t *block;
+
+	if (!ptr)
+		return Z_Malloc (size);
+
+	block = (memblock_t *) ((byte *) ptr - sizeof (memblock_t));
+	if (block->id != ZONEID)
+		Sys_Error ("Z_Realloc: realloced a pointer without ZONEID");
+	if (block->tag == 0)
+		Sys_Error ("Z_Realloc: realloced a freed pointer");
+
+	old_size = block->size;
+	old_ptr = ptr;
+
+	Z_Free (ptr);
+	ptr = Z_TagMalloc (size, 1);
+	if (!ptr)
+		Sys_Error ("Z_Realloc: failed on allocation of %i bytes", size);
+
+	if (ptr != old_ptr)
+		memmove (ptr, old_ptr, min (old_size, size));
+
+	return ptr;
+}

@@ -296,7 +296,8 @@ typedef struct {
 // Whole model
 //
 
-typedef enum {mod_brush, mod_sprite, mod_alias} modtype_t;
+typedef int modtype_t;
+enum {mod_brush, mod_sprite, mod_alias};
 
 #define	EF_ROCKET	1			// leave a trail
 #define	EF_GRENADE	2			// leave a trail
