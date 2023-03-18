@@ -244,9 +244,9 @@ float CL_KeyState (kbutton_t *key)
 //==========================================================================
 
 cvar_t	cl_upspeed = {"cl_upspeed","200"};
-cvar_t	cl_forwardspeed = {"cl_forwardspeed","200", true};
-cvar_t	cl_backspeed = {"cl_backspeed","200", true};
-cvar_t	cl_sidespeed = {"cl_sidespeed","350"};
+float	cl_forwardspeed;
+float	cl_backspeed;
+float	cl_sidespeed;
 
 cvar_t	cl_movespeedkey = {"cl_movespeedkey","2.0"};
 
@@ -256,6 +256,13 @@ cvar_t	cl_pitchspeed = {"cl_pitchspeed","150"};
 cvar_t	cl_anglespeedkey = {"cl_anglespeedkey","1.5"};
 cvar_t	in_aimassist = {"in_aimassist", "1", true};
 
+#if ROCKBOX
+#define 	INPUT_SENSITIVITY_FACTOR 	0.25
+#define  	MOVEMENT_FACTOR  			0.15
+#else 
+#define 	INPUT_SENSITIVITY_FACTOR 	1.0
+#define  	MOVEMENT_FACTOR  			0.5
+#endif
 
 /*
 ================
@@ -283,8 +290,13 @@ void CL_AdjustAngles (void)
 	if (in_klook.state & 1)
 	{
 		V_StopPitchDrift ();
-		cl.viewangles[PITCH] -= speed*cl_pitchspeed.value * CL_KeyState (&in_forward);
-		cl.viewangles[PITCH] += speed*cl_pitchspeed.value * CL_KeyState (&in_back);
+		cl.viewangles[PITCH] -= speed*cl_pitchspeed.value * CL_KeyState (&in_forward) * ((float)(sensitivity.value) / 3.0) * INPUT_SENSITIVITY_FACTOR;
+
+		#if ROCKBOX
+		cl.viewangles[PITCH] += speed*cl_pitchspeed.value * CL_KeyState (&in_use) * ((float)(sensitivity.value) / 3.0) * INPUT_SENSITIVITY_FACTOR;
+		#else 
+		cl.viewangles[PITCH] += speed*cl_pitchspeed.value * CL_KeyState (&in_back) * ((float)(sensitivity.value) / 3.0) * INPUT_SENSITIVITY_FACTOR;
+		#endif
 	}
 	
 	up = CL_KeyState (&in_lookup);
@@ -440,11 +452,21 @@ void CL_BaseMove (usercmd_t *cmd)
 	CL_AdjustAngles ();
 	
 	Q_memset (cmd, 0, sizeof(*cmd));
+
+	// Moto - we handle movespeed in QC now.
+	cl_backspeed = cl_forwardspeed = cl_sidespeed = sv_player->v.maxspeed;
+
+	// Throttle side and back speeds
+	cl_sidespeed *= 0.8;
+	cl_backspeed *= 0.7;
+	
+	if (waypoint_mode.value)
+		cl_backspeed = cl_forwardspeed = cl_sidespeed *= 1.5;
 	
 	if (in_strafe.state & 1)
 	{
-		cmd->sidemove += cl_sidespeed.value * CL_KeyState (&in_right);
-		cmd->sidemove -= cl_sidespeed.value * CL_KeyState (&in_left);
+		cmd->sidemove += cl_sidespeed * CL_KeyState (&in_right) * MOVEMENT_FACTOR;
+		cmd->sidemove -= cl_sidespeed * CL_KeyState (&in_left) * MOVEMENT_FACTOR;
 	}
 
 	// crosshair stuff
@@ -453,16 +475,16 @@ void CL_BaseMove (usercmd_t *cmd)
 	if (crosshair_opacity <= 128)
 		crosshair_opacity = 128;
 
-	cmd->sidemove += cl_sidespeed.value * CL_KeyState (&in_moveright);
-	cmd->sidemove -= cl_sidespeed.value * CL_KeyState (&in_moveleft);
+	cmd->sidemove += cl_sidespeed * CL_KeyState (&in_moveright) * MOVEMENT_FACTOR;
+	cmd->sidemove -= cl_sidespeed * CL_KeyState (&in_moveleft) * MOVEMENT_FACTOR;
 
 	cmd->upmove += cl_upspeed.value * CL_KeyState (&in_up);
 	cmd->upmove -= cl_upspeed.value * CL_KeyState (&in_down);
 
 	if (! (in_klook.state & 1) )
 	{	
-		cmd->forwardmove += cl_forwardspeed.value * CL_KeyState (&in_forward);
-		cmd->forwardmove -= cl_backspeed.value * CL_KeyState (&in_back);
+		cmd->forwardmove += cl_forwardspeed * CL_KeyState (&in_forward);
+		cmd->forwardmove -= cl_backspeed * CL_KeyState (&in_back);
 	}	
 
 //

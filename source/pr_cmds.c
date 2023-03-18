@@ -365,7 +365,6 @@ void PF_useprint (void)
 	cost = G_FLOAT(OFS_PARM2);
 	weapon = G_FLOAT(OFS_PARM3);
 
-
 	if (entnum < 1 || entnum > svs.maxclients)
 	{
 		Con_Printf ("tried to sprint to a non-client\n");
@@ -609,18 +608,14 @@ void PF_sound (void)
 	sample = G_STRING(OFS_PARM2);
 	volume = G_FLOAT(OFS_PARM3) * 255;
 	attenuation = G_FLOAT(OFS_PARM4);
-	
-	if (!nosound.value)
-	{
+
+	if (!nosound.value) {
 		if (volume < 0 || volume > 255)
 			Sys_Error ("SV_StartSound: volume = %i", volume);
-
 		if (attenuation < 0 || attenuation > 4)
 			Sys_Error ("SV_StartSound: attenuation = %f", attenuation);
-
 		if (channel < 0 || channel > 7)
 			Sys_Error ("SV_StartSound: channel = %i", channel);
-
 		SV_StartSound (entity, channel, sample, volume, attenuation);
 	}
 }
@@ -2463,10 +2458,10 @@ void PF_precache_sound (void)
 		
 	s = G_STRING(OFS_PARM0);
 	G_INT(OFS_RETURN) = G_INT(OFS_PARM0);
-
-    if (nosound.value)
-    	return;
-
+	
+	if (nosound.value)
+		return;
+	
 	PR_CheckEmptyString (s);
 	
 	for (i=0 ; i<MAX_SOUNDS ; i++)
@@ -3151,8 +3146,8 @@ void PF_SongEgg (void)
 	
 	trackname = G_STRING(OFS_PARM0);
 
-	MSG_WriteByte (&sv.reliable_datagram,   svc_songegg);
-	MSG_WriteString (&sv.reliable_datagram, trackname);
+	//MSG_WriteByte (&sv.reliable_datagram,   svc_songegg);
+	//MSG_WriteString (&sv.reliable_datagram, trackname);
 }
 
 /*
@@ -3219,11 +3214,11 @@ void PF_updateLimb (void)
 
 	zombieent = G_EDICTNUM(OFS_PARM0);
 	limb = G_FLOAT(OFS_PARM1);
-	limbent = G_EDICTNUM(OFS_PARM2);/*
+	limbent = G_EDICTNUM(OFS_PARM2);
 	MSG_WriteByte (&sv.reliable_datagram,   svc_limbupdate);
 	MSG_WriteByte (&sv.reliable_datagram,  limb);
 	MSG_WriteShort (&sv.reliable_datagram,  zombieent);
-	MSG_WriteShort (&sv.reliable_datagram,  limbent);*/
+	MSG_WriteShort (&sv.reliable_datagram,  limbent);
 }
 
 /*

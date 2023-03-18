@@ -38,7 +38,7 @@ cvar_t		scr_showram = {"showram","1"};
 cvar_t		scr_showturtle = {"showturtle","0"};
 cvar_t		scr_showpause = {"showpause","1"};
 cvar_t		scr_printspeed = {"scr_printspeed","8"};
-cvar_t 		scr_showfps = {"scr_showfps", "0"};
+cvar_t 		scr_showfps = {"scr_showfps", "1"};
 
 
 qboolean	scr_initialized;		// ready to draw

@@ -1113,16 +1113,16 @@ void M_AdjustSliders (int dir)
 		break;
 
 	case 8:	// allways run
-		if (cl_forwardspeed.value > 200)
-		{
-			Cvar_SetValue ("cl_forwardspeed", 200);
-			Cvar_SetValue ("cl_backspeed", 200);
-		}
-		else
-		{
-			Cvar_SetValue ("cl_forwardspeed", 400);
-			Cvar_SetValue ("cl_backspeed", 400);
-		}
+		// if (cl_forwardspeed.value > 200)
+		// {
+		// 	Cvar_SetValue ("cl_forwardspeed", 200);
+		// 	Cvar_SetValue ("cl_backspeed", 200);
+		// }
+		// else
+		// {
+		// 	Cvar_SetValue ("cl_forwardspeed", 400);
+		// 	Cvar_SetValue ("cl_backspeed", 400);
+		// }
 		break;
 
 	case 9:	// invert mouse
@@ -1209,7 +1209,7 @@ void M_Options_Draw (void)
 	M_DrawSlider (220, 88, r);
 
 	M_Print (16, 96,  "            Always Run");
-	M_DrawCheckbox (220, 96, cl_forwardspeed.value > 200);
+	//M_DrawCheckbox (220, 96, cl_forwardspeed.value > 200);
 
 	M_Print (16, 104, "          Invert Mouse");
 	M_DrawCheckbox (220, 104, m_pitch.value < 0);

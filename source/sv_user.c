@@ -389,7 +389,7 @@ void SV_ClientThink (void)
 	origin = sv_player->v.origin;
 	velocity = sv_player->v.velocity;
 
-	DropPunchAngle ();
+	//DropPunchAngle ();
 	
 //
 // if dead, behave differently

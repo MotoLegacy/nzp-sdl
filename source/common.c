@@ -237,12 +237,17 @@ void Q_strcat (char *dest, const char *src)
 
 int Q_strcmp (const char *s1, const char *s2)
 {
+	#ifndef ROCKBOX
+	return strcmp(s1, s2);
+	#endif 
 	while (1)
 	{
-		if (*s1 != *s2)
+		if (*s1 != *s2) {
 			return -1;              // strings not equal
-		if (!*s1)
+		}
+		if (!*s1) {
 			return 0;               // strings are equal
+		}
 		s1++;
 		s2++;
 	}

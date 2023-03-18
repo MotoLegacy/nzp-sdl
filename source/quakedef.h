@@ -19,7 +19,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // quakedef.h -- primary header for client
 
+#if ROCKBOX
 #define EOF 	-1
+#endif 
 
 #define qtrue 1
 #define qfalse 0

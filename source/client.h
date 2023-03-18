@@ -237,9 +237,9 @@ extern	cvar_t	cl_name;
 extern	cvar_t	cl_color;
 
 extern	cvar_t	cl_upspeed;
-extern	cvar_t	cl_forwardspeed;
-extern	cvar_t	cl_backspeed;
-extern	cvar_t	cl_sidespeed;
+extern	float	cl_forwardspeed;
+extern	float	cl_backspeed;
+extern	float	cl_sidespeed;
 
 extern	cvar_t	cl_movespeedkey;
 

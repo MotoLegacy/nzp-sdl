@@ -43,3 +43,5 @@ qpic_t *Draw_CachePicColorOverride (char *path, unsigned short color_hack);
 unsigned char convert_24_to_8(const unsigned char palette[768], const int rgb[3]);
 byte findclosestpalmatch(byte r, byte g, byte b, byte a);
 int loadtextureimage (char* filename, int matchwidth, int matchheight, bool complain, bool mipmap);
+byte convert_white_to_yellow(byte color_index);
+byte convert_white_to_red(byte color_index);

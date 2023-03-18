@@ -276,7 +276,7 @@ void V_DriftPitch (void)
 // don't count small mouse motion
 	if (cl.nodrift)
 	{
-		if ( fabs(cl.cmd.forwardmove) < cl_forwardspeed.value)
+		if ( fabs(cl.cmd.forwardmove) < cl_forwardspeed)
 			cl.driftmove = 0;
 		else
 			cl.driftmove += host_frametime;
