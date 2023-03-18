@@ -934,7 +934,8 @@ void Draw_ConsoleBackground (int lines)
 			v = (vid.conheight - lines + y)*200/vid.conheight;
 			src = conback->data + v*320;
 			if (vid.conwidth == 320) {
-				memcpy (dest, src, vid.conwidth);
+				memset (dest, 0, vid.conwidth*4);
+				//memcpy (dest, src, vid.conwidth);
 			}
 			else
 			{

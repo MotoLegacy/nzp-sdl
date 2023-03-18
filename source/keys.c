@@ -522,15 +522,15 @@ void Key_Bind_f (void)
         {
         case K_ENTER:
             overridden = true;
-            strcpy(cmd, "+attack");
+            strcpy(cmd, "+attack ");
             break;
         case 'a':
             overridden = true;
-            strcpy(cmd, "+switch");
+            strcpy(cmd, "aimtoggle ");
             break;
         case 'd':
             overridden = true;
-            strcpy(cmd, "+reload");
+            strcpy(cmd, "+reload ");
             break;
         }
     }
@@ -591,7 +591,7 @@ void Key_Binddt_f (void)
 	cmd[0] = 0;		// start out with a null string
 	for (i=2 ; i< c ; i++)
 	{
-		if (i > 2)
+		//if (i > 2)
 			strcat (cmd, " ");
 		strcat (cmd, Cmd_Argv(i));
 	}
@@ -727,8 +727,6 @@ void Key_Event (int key, qboolean down)
 	char	*kb;
 	char	cmd[1024];
 
-	Con_Printf("key: %d (%s)\n", key, Key_KeynumToString(key));
-
 	oldkey = lastkey;
 	keydown[key] = down;
 	lastkey = key;
@@ -829,7 +827,7 @@ void Key_Event (int key, qboolean down)
 	|| (key_dest == key_console && !consolekeys[key])
 	|| (key_dest == key_game && ( !con_forcedup || !consolekeys[key] ) ) )
 	{
-		if (oldkey == key && ((oldkeytime + 0.3) > lastkeytime)) // naievil -- increase double tap bind time
+		if (oldkey == key && ((oldkeytime + 2.0) > lastkeytime)) // naievil -- increase double tap bind time
 		{
 			kb = dtbindings[key];
 			if (kb)
