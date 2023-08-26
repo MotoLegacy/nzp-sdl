@@ -182,6 +182,7 @@ void In_AimToggle(void)
 	{
 		IN_KLookDown();
 		IN_AimDown();
+		V_StartPitchDrift();
 	}
 }
 
@@ -362,6 +363,7 @@ int EN_Find(int num,char *string)
 
 void CL_Aim_Snap(void)
 {
+	Con_Printf("aimsnap\n");
 	edict_t *z,*bz,*player;
 	int znum;
 	trace_t trace;
